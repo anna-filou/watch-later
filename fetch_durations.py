@@ -7,7 +7,7 @@ and writes the results back to the same file after each batch
 
 Usage:
     python3 fetch_durations.py
-    python3 fetch_durations.py --file /path/to/watch_later.json
+    python3 fetch_durations.py --file /path/to/watch_later.json   # overrides path below
     python3 fetch_durations.py --limit 50   # only fetch first N missing
 """
 
@@ -18,11 +18,34 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+# ---------------------------------------------------------------------------
+# Paste the full path to your watch_later.json here (e.g. Google Drive sync).
+# Example macOS Google Drive:
+#   "/Users/you/Library/CloudStorage/GoogleDrive-you@email.com/My Drive/watch_later/watch_later.json"
+# Leave "" to use watch_later.json in the same folder as this script.
+# --file on the command line always overrides this.
+# ---------------------------------------------------------------------------
+WATCH_LATER_JSON_PATH = "/Users/anna/My Drive/Sync/Watch Later JSON/watch_later.json"
+
 def parse_args():
     p = argparse.ArgumentParser(description="Fetch missing YouTube durations via yt-dlp")
-    p.add_argument("--file", default="watch_later.json", help="Path to watch_later.json")
+    p.add_argument(
+        "--file",
+        default=None,
+        metavar="PATH",
+        help="Path to watch_later.json (overrides WATCH_LATER_JSON_PATH in this script)",
+    )
     p.add_argument("--limit", type=int, default=None, help="Max number of missing durations to fetch")
     return p.parse_args()
+
+
+def resolved_json_path(cli_file: str | None) -> Path:
+    if cli_file:
+        return Path(cli_file).expanduser().resolve()
+    configured = (WATCH_LATER_JSON_PATH or "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return Path(__file__).resolve().parent / "watch_later.json"
 
 def fetch_durations_batch(
     video_ids: list[str],
@@ -96,7 +119,7 @@ def write_videos(path: Path, videos: list) -> None:
 
 def main():
     args = parse_args()
-    data_path = Path(args.file)
+    data_path = resolved_json_path(args.file)
 
     if not data_path.exists():
         print(f"ERROR: File not found: {data_path}")

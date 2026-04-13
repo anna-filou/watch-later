@@ -59,13 +59,10 @@ Point the site at this repo (or drag-and-drop the folder). Netlify serves `index
 
 ## Local development
 
-Serve the folder with any static server, for example:
+You need a local URL (not `file://`). Any static file server works:
 
-```bash
-python3 -m http.server 8080
-```
-
-Then open `http://localhost:8080`.
+- **VS Code / Cursor:** use a static-server extension (for example [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer)) and open the served page from the status bar or command palette. You do not need Python for this.
+- **Terminal:** for example `python3 -m http.server 8080` from the project folder, then open `http://localhost:8080`.
 
 ## Filling in video durations
 
@@ -76,6 +73,18 @@ pip install yt-dlp
 python3 fetch_durations.py
 ```
 
+### Where the script looks for `watch_later.json`
+
+If your JSON lives in a synced folder (for example Google Drive) instead of next to the script, open `fetch_durations.py` and set **`WATCH_LATER_JSON_PATH`** near the top to the full path of your file, e.g. on macOS:
+
+```text
+/Users/you/Library/CloudStorage/GoogleDrive-you@email.com/My Drive/watch_later/watch_later.json
+```
+
+Leave it as `""` to keep using `watch_later.json` in the same directory as `fetch_durations.py`.
+
+**`--file` on the command line overrides** `WATCH_LATER_JSON_PATH` for that run only.
+
 Optional arguments:
 
 ```bash
@@ -83,7 +92,7 @@ python3 fetch_durations.py --file /path/to/watch_later.json
 python3 fetch_durations.py --limit 50
 ```
 
-The app can copy the default command from the menu after you load a file.
+The app can copy `python3 fetch_durations.py` from the menu after you load a file; that matches a configured `WATCH_LATER_JSON_PATH` or a JSON file next to the script.
 
 ## Repo layout
 

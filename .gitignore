@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Local secrets (e.g. API keys for fetch_durations.py)
+.env
+
+# macOS
+.DS_Store
+
+# Project
+archive/
