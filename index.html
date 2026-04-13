@@ -1,0 +1,2320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watch Later</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e10;--surface:#17171a;--surface2:#1f1f24;--border:#2a2a30;
+  --accent:#e8ff47;--text:#f0f0f2;--muted:#b6b6cc;--muted2:#ababc7;--r:10px;
+}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* SPLASH */
+.splash{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;gap:20px}
+.splash h1{font-family:'Syne',sans-serif;font-size:clamp(28px,6vw,44px);font-weight:800;letter-spacing:-1.2px}
+.splash p{max-width:420px;color:var(--muted);font-size:14px;line-height:1.55}
+.splash .note{font-size:12px;color:var(--muted2);max-width:480px}
+.splash-btn{background:var(--accent);border:none;border-radius:var(--r);color:#0e0e10;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;padding:12px 24px;cursor:pointer;letter-spacing:.02em}
+.splash-btn:hover{filter:brightness(1.05)}
+.splash-instructions{text-align:left;max-width:540px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px 16px}
+.splash-instructions h2{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--accent);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.08em}
+.splash-instructions h2:first-child{margin-top:0}
+.splash-instructions ol{padding-left:1.15em;font-size:13px;color:var(--muted);line-height:1.55}
+.splash-instructions li{margin:0 0 8px}
+.splash-instructions li:last-child{margin-bottom:0}
+.splash-instructions code{background:var(--surface2);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--text)}
+.splash-main{display:none;flex-direction:column;align-items:center;gap:20px;width:100%;text-align:center}
+.splash.splash-ready .splash-main{display:flex}
+#modalHelp .modal-panel.modal-panel-help{display:flex;flex-direction:column;max-height:min(90vh,calc(100vh - 48px));overflow:hidden;min-height:0}
+@supports (height:100dvh){
+  #modalHelp .modal-panel.modal-panel-help{max-height:min(90vh,calc(100dvh - 48px))}
+}
+#modalHelp .help-modal-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:6px;margin-right:-2px}
+.help-body{font-size:14px;color:var(--muted);line-height:1.6;padding:4px 0 12px}
+.modal-panel-help .help-body h4{font-family:'Syne',sans-serif;font-size:16px;font-weight:600;margin:16px 0 8px;line-height:1.25;color:var(--text)}
+.modal-panel-help .help-body h4:first-of-type{margin-top:0}
+.help-body ul{margin:4px 0 0 1em}
+.help-body li{margin-bottom:6px}
+.help-body li strong{color:var(--text);font-weight:600}
+.help-body code{background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--text);font-size:12px}
+.app-main{display:none}
+.app-main.on{display:block}
+
+/* HEADER */
+header{padding:28px 24px 0;max-width:1440px;margin:0 auto}
+.header-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;width:100%}
+.header-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-family:'Syne',sans-serif;font-size:clamp(24px,5vw,32px);font-weight:800;letter-spacing:-1.5px;line-height:1}
+.header-badges{display:flex;align-items:center;gap:8px;flex-wrap:wrap;align-self:center}
+.badge{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;background:var(--accent);color:#0e0e10;padding:3px 10px;border-radius:999px;line-height:1.2}
+.badge.badge-filtered{background:var(--surface2);color:var(--accent);border:1px solid var(--accent);padding:2px 10px}
+.badge.badge-dur-sum{background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:2px 10px;font-weight:600;font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums}
+.header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hdr-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--muted);font-family:'Syne',sans-serif;font-size:12px;font-weight:600;padding:8px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;letter-spacing:.02em;transition:border-color .15s,color .15s}
+.hdr-btn:hover{border-color:var(--accent);color:var(--accent)}
+.hdr-btn.hdr-btn-primary{background:var(--accent);border-color:var(--accent);color:#0e0e10;font-weight:700}
+.hdr-btn.hdr-btn-primary:hover{color:#0e0e10;filter:brightness(1.06)}
+.hdr-btn.icon-only{padding:8px 10px}
+
+.controls{display:flex;gap:10px;align-items:center;margin-top:18px;flex-wrap:nowrap;min-width:0}
+.controls-dropdowns{display:flex;flex:1 1 0;min-width:0;flex-wrap:nowrap;gap:10px;align-items:stretch}
+.controls-dropdowns .sel-wrap{flex:1 1 0;min-width:0}
+.controls-dropdowns select{min-width:0;width:100%;max-width:100%}
+.search-wrap{position:relative;flex:0 1 300px;min-width:320px;max-width:300px}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:22px;line-height:1}
+input[type=search]{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:9px 12px 9px 35px;outline:none;transition:border-color .15s}
+input[type=search]:focus{border-color:var(--accent)}
+input[type=search]::placeholder{color:var(--muted2)}
+.sel-wrap{position:relative}
+.sel-wrap::after{content:'▾';position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:11px}
+select{appearance:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:9px 32px 9px 13px;outline:none;cursor:pointer;transition:border-color .15s;min-width:190px}
+select:focus{border-color:var(--accent)}
+select option{background:#1f1f24}
+.af{display:none;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.af.on{display:flex}
+.af-pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.af-clear{margin-left:auto;background:none;border:none;color:var(--accent);font-family:'Syne',sans-serif;font-size:11px;font-weight:600;cursor:pointer;text-decoration:underline;padding:4px 2px;letter-spacing:.02em}
+.af-clear:hover{color:var(--text)}
+.pill{display:inline-flex;align-items:center;gap:4px;background:var(--accent);color:#0e0e10;font-weight:700;font-size:11px;padding:3px 10px;border-radius:999px;cursor:pointer;font-family:'Syne',sans-serif;letter-spacing:.02em;border:none}
+.pill:hover{opacity:.85}
+
+.grid-wrap{max-width:1440px;margin:20px auto 60px;padding:0 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+
+a.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;text-decoration:none;display:flex;flex-direction:column;transition:transform .18s,border-color .18s;cursor:pointer}
+a.card:hover{transform:translateY(-3px);border-color:#3a3a48}
+a.card:hover .ov{opacity:1}
+a.card:hover .thumb img{transform:scale(1.04)}
+
+.thumb{position:relative;aspect-ratio:16/9;background:var(--surface2);overflow:hidden;flex-shrink:0}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s}
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .18s;pointer-events:none}
+.play{width:42px;height:42px;background:rgba(232,255,71,.9);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.play svg{width:15px;height:15px;fill:#0e0e10;margin-left:2px}
+.no-thumb{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted2);font-size:26px}
+.dur-pill{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.75);color:var(--text);font-size:11px;font-weight:600;padding:3px 7px;border-radius:6px;font-variant-numeric:tabular-nums;pointer-events:none;z-index:2}
+.watched-overlay{position:absolute;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#6ddc8a;letter-spacing:.05em;pointer-events:none;z-index:3}
+.card.is-watched .watched-overlay{display:flex}
+.batch-marker{position:absolute;top:8px;right:8px;width:22px;height:22px;background:var(--accent);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0e0e10;z-index:5;line-height:1}
+.card.batch-selected .batch-marker{display:flex}
+.card.is-watched{opacity:.5}
+.card.is-watched:hover{opacity:.65}
+
+.body{padding:10px 11px 11px;display:flex;flex-direction:column;gap:5px;flex:1}
+.title{font-size:12px;font-weight:500;line-height:1.4;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.meta{display:flex;align-items:center;justify-content:space-between;margin-top:auto;gap:6px;padding-top:4px}
+.chan{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tag{font-family:'Syne',sans-serif;font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;flex-shrink:0;letter-spacing:.02em;cursor:pointer;transition:opacity .15s}
+.tag:hover{opacity:.75}
+.tag-uncat{background:#3a3a48;color:#c8c8d0}
+
+.empty{display:none;text-align:center;padding:80px 24px;color:var(--muted)}
+.empty.on{display:block}
+.empty h2{font-family:'Syne',sans-serif;font-size:22px;color:var(--text);margin-bottom:6px}
+
+.lm{text-align:center;margin-top:20px;display:none}
+.lm.on{display:block}
+.lm-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:11px 30px;cursor:pointer;transition:border-color .15s,color .15s;letter-spacing:.02em}
+.lm-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+@media(max-width:1100px){
+  .controls{flex-wrap:wrap;overflow-x:visible;gap:10px;align-items:stretch}
+  .search-wrap{flex:1 1 100%;min-width:0;width:100%;max-width:100%}
+  .controls-dropdowns{flex:0 0 auto;flex-wrap:nowrap;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:thin;margin-left:-24px;margin-right:-24px;padding:2px 24px 6px;width:calc(100% + 48px);box-sizing:border-box;align-self:stretch}
+  .controls-dropdowns .sel-wrap{flex:0 0 auto;min-width:auto;flex-shrink:0}
+  .controls-dropdowns select{min-width:190px;width:auto;max-width:none}
+}
+
+@media(max-width:600px){
+  header{padding:18px 16px 0}
+  .batch-bar{padding:10px 16px}
+  .grid-wrap{padding:0 14px;margin-top:16px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px}
+  .controls{gap:7px}
+  .controls-dropdowns{gap:7px;margin-left:-16px;margin-right:-16px;padding:2px 16px 6px;width:calc(100% + 32px)}
+}
+
+.batch-bar{display:none;align-items:center;gap:12px;padding:10px max(24px,calc((100% - 1440px) / 2 + 24px));background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;position:sticky;top:0;z-index:200;box-sizing:border-box}
+.batch-bar.on{display:flex}
+.batch-count{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--accent)}
+.batch-dur-total{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.batch-btn{background:none;border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Syne',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer;transition:border-color .15s,color .15s,background .15s;letter-spacing:.02em}
+.batch-btn:hover{border-color:var(--accent);color:var(--accent)}
+.batch-btn.danger:hover{border-color:#ff6b6b;color:#ff6b6b}
+.batch-btn.cancel{color:var(--muted)}
+.batch-btn.select-all{color:var(--muted)}
+.batch-btn:disabled{opacity:.42;cursor:not-allowed;color:var(--muted2)}
+.batch-btn:disabled:hover{border-color:var(--border);color:var(--muted2)}
+.batch-sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
+.batch-sep-end{margin-left:auto}
+.card.batch-selected{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:-1px}
+
+.menu-wrap{position:relative}
+#menuPanel{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;min-width:min(280px,calc(100vw - 48px));z-index:150;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:6px 0}
+.menu-subhead{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;padding:8px 14px 4px}
+.menu-sep{height:1px;background:var(--border);margin:6px 0}
+.menu-item{width:100%;background:none;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:10px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .12s}
+.menu-item:hover{background:rgba(255,255,255,.05)}
+.menu-item svg{flex-shrink:0;color:var(--muted)}
+.menu-item:hover svg{color:var(--accent)}
+.menu-item-label{flex:1;min-width:0;line-height:1.35}
+
+/* MODALS */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+.modal-backdrop.on{display:flex}
+.modal-panel{position:relative;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.6)}
+.modal-panel.wide{max-width:720px}
+.modal-panel h3{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin:0 40px 12px 0;color:var(--text)}
+.modal-close{position:absolute;top:14px;right:14px;width:36px;height:36px;padding:0;border:none;border-radius:var(--r);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .15s,background .15s}
+.modal-close:hover{color:var(--text);background:rgba(255,255,255,.07)}
+.modal-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.modal-close svg{display:block;flex-shrink:0}
+.modal-add-form{margin:0;padding:0;border:0;display:block;min-width:0}
+/* Add-video modal: cap height to viewport; scroll category block only; keep primary action visible */
+#modalAdd.modal-backdrop{align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+#modalAdd .modal-panel.modal-panel-add{display:flex;flex-direction:column;max-height:min(90vh,calc(100vh - 32px));overflow:hidden;min-height:0}
+@supports (height:100dvh){
+  #modalAdd .modal-panel.modal-panel-add{max-height:min(90vh,calc(100dvh - 32px))}
+}
+#modalAdd .modal-panel.modal-panel-add > h3{flex-shrink:0}
+#modalAdd .modal-panel.modal-panel-add .modal-add-form{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden}
+#modalAdd .modal-panel.modal-panel-add .modal-add-form > :not(#addPreview){flex-shrink:0}
+#modalAdd #addPreview.add-modal-preview{display:none;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden}
+#modalAdd #addPreview.add-modal-preview.is-open{display:flex}
+.add-modal-cat-scroll{flex:1 1 auto;min-height:120px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:2px;margin-right:-2px}
+.add-modal-cat-scroll .cat-grid{margin-top:10px;margin-bottom:4px}
+#modalAdd #addPreview .modal-actions{flex-shrink:0;margin-top:12px}
+.modal-panel p.hint{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.btn-ghost{background:none;border:1px solid var(--border);border-radius:var(--r);color:var(--muted);font-family:'Syne',sans-serif;font-size:12px;font-weight:600;padding:8px 16px;cursor:pointer}
+.btn-primary{background:var(--accent);border:none;border-radius:var(--r);color:#0e0e10;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;padding:8px 16px;cursor:pointer}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+input.modal-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:10px 12px;margin-bottom:10px;outline:none}
+input.modal-input:focus{border-color:var(--accent)}
+
+.cat-modal-filter{margin-top:4px}
+.cat-new-row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.cat-new-row .modal-input{margin-bottom:0;flex:1;min-width:140px}
+.cat-new-btn{flex-shrink:0;white-space:nowrap}
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:10px}
+.cat-filter-empty{margin-top:8px;margin-bottom:0}
+.add-preview-card{display:flex;gap:14px;align-items:stretch;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:2px}
+.add-preview-thumb{position:relative;width:168px;min-width:168px;flex-shrink:0;background:var(--surface2);aspect-ratio:16/9;align-self:center}
+.add-preview-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.add-preview-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;justify-content:center;padding:12px 14px 12px 0}
+.add-preview-title{font-size:14px;font-weight:700;line-height:1.35;color:var(--text);font-family:'Syne',sans-serif}
+.add-preview-chan{font-size:12px;color:var(--muted);line-height:1.4}
+.add-preview-dur-hint{margin:0;margin-top:4px}
+.add-preview-new-cat{margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+@media(max-width:480px){
+  .add-preview-card{flex-direction:column;gap:0}
+  .add-preview-thumb{width:100%;min-width:0;align-self:stretch}
+  .add-preview-body{padding:12px 12px 14px}
+}
+.cat-pill{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;padding:8px 10px;border-radius:999px;text-align:center;cursor:pointer;border:2px solid transparent;transition:border-color .12s,transform .1s;line-height:1.2}
+.cat-pill:hover{transform:scale(1.02)}
+.cat-pill.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+
+#toast{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:12px 20px;z-index:4000;box-shadow:0 8px 24px rgba(0,0,0,.5);align-items:center;gap:10px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+#toast.show{display:flex;white-space:normal;text-align:center;max-width:min(420px,92vw)}
+</style>
+</head>
+<body>
+
+<div class="splash" id="splash">
+  <div class="splash-main">
+  <h1>Watch Later</h1>
+  <p style="max-width:480px">Browse and edit your YouTube watch-later list stored in <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">watch_later.json</code>. Changes are written back to that file as you go.</p>
+
+  <div class="splash-instructions">
+    <h2>Before you start</h2>
+    <ol>
+      <li>Open this page at <code>http://localhost:…</code> or <code>http://127.0.0.1:…</code> (Live Server, <code>python -m http.server</code>, Netlify, etc.). It does <strong>not</strong> work from <code>file://</code> or <code>http://0.0.0.0:…</code> in Chrome.</li>
+      <li>Use a Chromium browser (Chrome or Edge) so the file picker and save API are available.</li>
+    </ol>
+    <h2>Then</h2>
+    <ol>
+      <li>Click <strong>Open watch_later.json</strong> below and choose your JSON file. The app stores a bookmark to that file in the browser so it can reconnect after a refresh (for example when Live Server reloads the page because the JSON was saved).</li>
+      <li>Video lengths stay empty until you run <code>python3 fetch_durations.py</code> on your machine (you can copy that command from <strong>Menu</strong> after loading).</li>
+    </ol>
+  </div>
+
+  <p class="note">If the button does nothing or errors, check the address bar: it should start with <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">http://localhost</code> or <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">http://127.0.0.1</code>, not <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">file://</code> or <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">0.0.0.0</code>.</p>
+  <div id="splashResumeWrap" style="display:none;margin-top:8px">
+    <p class="note" style="margin-bottom:10px">Your previous file is saved in this browser, but Chrome needs you to allow access again after a full page reload (for example when Live Server refreshes because the JSON changed).</p>
+    <button type="button" class="splash-btn" id="splashResumeBtn">Reconnect to saved file</button>
+  </div>
+  <button type="button" class="splash-btn" id="openFileBtn" style="margin-top:12px">Open watch_later.json</button>
+  </div>
+</div>
+
+<div class="app-main" id="appMain">
+<header>
+  <div class="header-top">
+    <div class="header-left">
+      <h1>Watch Later</h1>
+      <div class="header-badges">
+        <span class="badge" id="totalBadge" title="Unwatched videos in your list (not removed)">0</span>
+        <span class="badge badge-filtered" id="filteredBadge" title="Videos matching current filters">0</span>
+        <span class="badge badge-dur-sum" id="filteredDurBadge" title="">0h</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="hdr-btn hdr-btn-primary" id="btnAddVideo">Add video</button>
+      <div class="menu-wrap" id="menuWrap">
+        <button type="button" class="hdr-btn" id="menuBtn" aria-expanded="false" aria-haspopup="true" aria-controls="menuPanel">Menu ▾</button>
+        <div id="menuPanel" role="menu" aria-labelledby="menuBtn">
+          <button type="button" class="menu-item" id="menuImport" role="menuitem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span class="menu-item-label">Import JSON and overwrite</span>
+          </button>
+          <button type="button" class="menu-item" id="menuImportMerge" role="menuitem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            <span class="menu-item-label">Merge from JSON</span>
+          </button>
+          <div class="menu-subhead" role="presentation">Export</div>
+          <button type="button" class="menu-item export-item" data-export="json" role="menuitem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg>
+            <span class="menu-item-label">Download JSON</span>
+          </button>
+          <button type="button" class="menu-item export-item" data-export="csv" role="menuitem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+            <span class="menu-item-label">Download CSV</span>
+          </button>
+          <button type="button" class="menu-item export-item" data-export="cmd" role="menuitem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span class="menu-item-label">Copy fetch_durations command</span>
+          </button>
+          <div class="menu-sep" role="separator"></div>
+          <button type="button" class="menu-item" id="menuOpenFile" role="menuitem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span class="menu-item-label">Open JSON file</span>
+          </button>
+          <button type="button" class="menu-item" id="menuHelp" role="menuitem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span class="menu-item-label">Help &amp; shortcuts</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="search" id="q" placeholder="Search titles, channels…" autocomplete="off">
+    </div>
+    <div class="controls-dropdowns">
+      <div class="sel-wrap">
+        <select id="catSel"></select>
+      </div>
+      <div class="sel-wrap">
+        <select id="statusSel">
+          <option value="unwatched">Not watched</option>
+          <option value="watched">Watched</option>
+          <option value="all">Everything</option>
+        </select>
+      </div>
+      <div class="sel-wrap">
+        <select id="durSel" title="Filter by video length">
+          <option value="">Any duration</option>
+          <option value="__no_duration__">No duration</option>
+          <option value="0-300">0–5 min</option>
+          <option value="300-900">5–15 min</option>
+          <option value="900-1800">15–30 min</option>
+          <option value="1800-3600">30–60 min</option>
+          <option value="3600+">60+ min</option>
+        </select>
+      </div>
+      <div class="sel-wrap">
+        <select id="sortSel" title="Sort order">
+          <option value="default">Default sort</option>
+          <option value="dur-asc">Shortest first</option>
+          <option value="dur-desc">Longest first</option>
+        </select>
+      </div>
+      <div class="sel-wrap">
+        <select id="timeBudgetSel" title="Show videos that add up to about this much time (uses current filters and sort)">
+          <option value="">No time budget</option>
+          <option value="900">15 minutes</option>
+          <option value="1800">30 minutes</option>
+          <option value="3600">1 hour</option>
+          <option value="5400">1 hour 30</option>
+          <option value="7200">2 hours</option>
+          <option value="9000">2 hours 30</option>
+          <option value="10800">3 hours</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="af" id="af">
+    <span>Filtered by:</span>
+    <span class="af-pills" id="afPills"></span>
+    <button type="button" class="af-clear" id="afClearAll">Remove filters</button>
+  </div>
+</header>
+
+<div class="batch-bar" id="batchBar">
+  <span class="batch-count" id="batchCount">0 selected</span>
+  <div class="batch-sep"></div>
+  <button type="button" class="batch-btn select-all" id="batchSelectAll">Select all</button>
+  <button type="button" class="batch-btn" id="batchSetCat">Set category</button>
+  <button type="button" class="batch-btn" id="batchEditDur" disabled title="Select exactly one video">Edit duration</button>
+  <button type="button" class="batch-btn" id="batchToggleWatched">Toggle watched</button>
+  <button type="button" class="batch-btn danger" id="batchRemove">Remove</button>
+  <span class="batch-dur-total" id="batchDurTotal" hidden></span>
+  <div class="batch-sep batch-sep-end" aria-hidden="true"></div>
+  <button type="button" class="batch-btn cancel" id="batchCancel">× Cancel</button>
+</div>
+
+<div class="grid-wrap">
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty"><h2>No videos found</h2><p>Try a different search or category</p></div>
+  <div class="lm" id="lm"><button type="button" class="lm-btn" id="loadMoreBtn">Load more</button></div>
+</div>
+</div>
+
+<input type="file" id="importFile" accept=".json" style="display:none">
+
+<div class="modal-backdrop" id="modalCategory">
+  <div class="modal-panel wide">
+    <button type="button" class="modal-close" id="catModalClose" title="Close" aria-label="Close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h3 id="catModalTitle">Set category</h3>
+    <p class="hint" id="catModalHint"></p>
+    <input type="search" class="modal-input cat-modal-filter" id="catModalFilter" placeholder="Search categories…" autocomplete="off" aria-label="Filter categories">
+    <div class="cat-new-row">
+      <input type="text" class="modal-input" id="catModalNewName" placeholder="New category name…" maxlength="120" autocomplete="off" aria-label="New category name">
+      <button type="button" class="btn-ghost cat-new-btn" id="catModalNewBtn">Add category</button>
+    </div>
+    <div class="cat-grid" id="catModalGrid"></div>
+    <p class="hint cat-filter-empty" id="catModalFilterEmpty" hidden>No categories match your search.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-primary" id="catModalApply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalAdd">
+  <div class="modal-panel wide modal-panel-add">
+    <button type="button" class="modal-close" id="addModalClose" title="Close" aria-label="Close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h3>Add video</h3>
+    <div class="modal-add-form">
+      <p class="hint">Paste a YouTube URL, fetch metadata, then choose a category (optional).</p>
+      <input type="text" class="modal-input" id="addUrl" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="YouTube video URL">
+      <button type="button" class="btn-primary" id="addFetchBtn" style="margin-bottom:14px">Fetch title &amp; channel</button>
+      <div id="addPreview" class="add-modal-preview">
+        <div class="add-preview-card">
+          <div class="add-preview-thumb" id="addPreviewThumb"></div>
+          <div class="add-preview-body">
+            <div class="add-preview-title" id="addPreviewTitle"></div>
+            <div class="add-preview-chan" id="addPreviewChan"></div>
+            <p class="hint add-preview-dur-hint">Duration will be empty — run <code>python3 fetch_durations.py</code> later.</p>
+          </div>
+        </div>
+        <div class="add-modal-cat-scroll">
+          <p style="font-size:12px;font-weight:600;margin-top:14px;margin-bottom:0">Category</p>
+          <input type="text" class="modal-input cat-modal-filter" id="addCatFilter" placeholder="Search categories…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Filter categories">
+          <div class="cat-grid" id="addCatGrid"></div>
+          <p class="hint cat-filter-empty" id="addCatFilterEmpty" hidden>No categories match your search.</p>
+          <div class="cat-new-row add-preview-new-cat">
+            <input type="text" class="modal-input" id="addCatNewName" placeholder="New category name…" maxlength="120" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="New category name">
+            <button type="button" class="btn-ghost cat-new-btn" id="addCatNewBtn">Add category</button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-primary" id="addVideoBtn">Add video</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalImportConfirm">
+  <div class="modal-panel">
+    <button type="button" class="modal-close" id="importModalClose" title="Close" aria-label="Close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h3 id="importModalTitle">Import JSON and overwrite</h3>
+    <p class="hint" id="importSummary"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn-primary" id="importConfirmBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalEditDuration">
+  <div class="modal-panel">
+    <button type="button" class="modal-close" id="editDurClose" title="Close" aria-label="Close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h3>Edit duration</h3>
+    <p class="hint">Use <strong>M:SS</strong>, <strong>H:MM:SS</strong> (e.g. <code>4:32</code> or <code>1:05:20</code>), or <strong>seconds</strong> only (e.g. <code>272</code>). Leave empty and save to clear.</p>
+    <input type="text" class="modal-input" id="editDurInput" placeholder="e.g. 6:45 or 405" autocomplete="off">
+    <div class="modal-actions">
+      <button type="button" class="btn-primary" id="editDurSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalHelp">
+  <div class="modal-panel wide modal-panel-help">
+    <button type="button" class="modal-close" id="helpModalClose" title="Close" aria-label="Close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h3>Instructions &amp; shortcuts</h3>
+    <div class="help-modal-scroll help-body">
+      <h4>Saving</h4>
+      This app displays and edits a JSON file on your computer. Use <strong>Menu → Open JSON file</strong> to switch files; <strong>Menu → Help &amp; shortcuts</strong> opens this guide.
+      <ul>
+        <li><strong>Add video</strong> — Paste a YouTube link and fetch its title, optionally pick a category, then add. Enter always confirms.</li>
+        <li><strong>Menu → Import JSON and overwrite</strong> — Replaces the current list with a new JSON file.</li>
+        <li><strong>Menu → Merge from JSON</strong> — Adds videos from a JSON file; entries that match a video already in the list (same YouTube id) are skipped.</li>
+        <li><strong>Menu → Export</strong> — Download your list as JSON or CSV, or copy the duration-fetch command.</li>
+      </ul>
+      <h4>Browsing</h4>
+      Filter by search, category, watched status, or duration. The yellow badge counts unwatched videos.
+      <ul>
+        <li>Click a card to open it on YouTube.</li>
+        <li>Click a category tag to filter by it; click <strong>Uncategorized</strong> to assign a category.</li>
+        <li>Active filters show as pills — click one to remove it, or use <strong>Remove filters</strong> to clear all.</li>
+        <li><strong>Time budget</strong> — Dropdown next to sort: from the current filters and sort order, pick videos whose lengths add up to about the target (skips videos that would overshoot by more than a few minutes, then keeps going). Shown as a pill while active.</li>
+      </ul>
+      <h4>Batch Mode</h4>
+      Right-click or long-press a card to select it, then click more cards to add to the selection. Use <strong>Edit duration</strong> when exactly one card is selected. Press Esc to exit.
+      <h4>Keyboard</h4>
+      <ul>
+        <li><strong>N</strong> — Add video</li>
+        <li><strong>F</strong> — Focus search</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><span id="toastMsg"></span></div>
+
+<script>
+const CAT_COLORS = {
+  "AI Design":         ["#d6eaff","#0e2a4a"],
+  "AI Coding":         ["#c7e0ff","#0d2540"],
+  "Design":            ["#ddd6ff","#1e1040"],
+  "Productivity":      ["#d6fff0","#0a3020"],
+  "PKM":               ["#b8f5d8","#083020"],
+  "Mental Health":     ["#fff3c0","#3a2800"],
+  "LGBT":              ["#ffd6f5","#3a0830"],
+  "Self-Improvement":  ["#ffe5c0","#3a1800"],
+  "Tech Reviews":      ["#2a2a3e","#c8c8e0"],
+  "Politics & Society":["#ffd6d6","#3a0808"],
+  "Fitness":           ["#d6ffe8","#0a2818"],
+  "Language Learning": ["#ead6ff","#1e0838"],
+  "Arcane":            ["#c0e8ff","#082030"],
+  "Travel & Packing":  ["#fffbc0","#302800"],
+  "Business":          ["#ffe8d6","#302008"],
+  "Religion":          ["#2a2a2a","#d8d8d8"],
+  "Philosophy":        ["#f0d6ff","#200838"],
+  "Humor":             ["#fffbd6","#302600"],
+  "Music":             ["#ffd6e8","#380820"],
+  "Pop Culture":       ["#ffd6d8","#380810"],
+  "Journalism":        ["#ffebd6","#382010"],
+  "Short Films":       ["#d6e8ff","#0a1e38"],
+  "Science & Health":  ["#d6ffec","#083020"],
+  "Content Creation":  ["#fff4d6","#302800"],
+  "Tech Culture":      ["#d6d6ff","#101038"],
+  "Misc":              ["#2a2a2a","#c8c8c8"],
+};
+
+/** Colors for user-created categories or categories only present in JSON (stable hash). */
+const EXTRA_CAT_PALETTE = [
+  ['#e8d6ff', '#280838'],
+  ['#d6fff4', '#083028'],
+  ['#ffe0d6', '#381808'],
+  ['#d6f0ff', '#082838'],
+  ['#f0ffd6', '#283808'],
+  ['#ffd6f0', '#380828'],
+  ['#d6e8ff', '#101c38'],
+  ['#e8ffd6', '#183808'],
+  ['#ffe8f4', '#381028'],
+  ['#d8f4ff', '#082030'],
+  ['#fff0d6', '#382808'],
+  ['#e4d6ff', '#201040'],
+];
+
+function pickerCategories() {
+  return Object.keys(CAT_COLORS).sort((a, b) => a.localeCompare(b));
+}
+
+function assignColorToCategoryKey(c) {
+  if (!c || CAT_COLORS[c]) return;
+  let h = 0;
+  for (let i = 0; i < c.length; i++) h = (h * 31 + c.charCodeAt(i)) >>> 0;
+  const pair = EXTRA_CAT_PALETTE[h % EXTRA_CAT_PALETTE.length];
+  CAT_COLORS[c] = [pair[0], pair[1]];
+}
+
+function ensureCategoryColorsForData() {
+  videos.forEach(v => {
+    if (v.category) assignColorToCategoryKey(v.category);
+  });
+}
+
+function normalizeNewCategoryName(raw) {
+  return String(raw || '').trim().replace(/\s+/g, ' ');
+}
+
+/** @returns {string|null} normalized name or null on error */
+function registerNewCategory(raw) {
+  const n = normalizeNewCategoryName(raw);
+  if (!n) {
+    showToast('Enter a category name', true);
+    return null;
+  }
+  const lower = n.toLowerCase();
+  if (lower === 'no category') {
+    showToast('That name is reserved — use the No category pill to clear', true);
+    return null;
+  }
+  if (Object.keys(CAT_COLORS).some(k => k.toLowerCase() === lower)) {
+    showToast('That category already exists', true);
+    return null;
+  }
+  assignColorToCategoryKey(n);
+  return n;
+}
+
+const PAGE_SIZE = 60;
+const UNCATEGORIZED_VAL = '__uncategorized__';
+
+const DURATION_UNKNOWN_VAL = '__no_duration__';
+
+const DURATION_FILTER_LABELS = {
+  [DURATION_UNKNOWN_VAL]: 'No duration',
+  '0-300': '0–5 min',
+  '300-900': '5–15 min',
+  '900-1800': '15–30 min',
+  '1800-3600': '30–60 min',
+  '3600+': '60+ min',
+};
+
+/** Queue fill: allow finishing up to this much past the target; else skip that video and keep scanning. */
+const TIME_BUDGET_MAX_OVERSHOOT_SEC = 300;
+
+/** Preset time budget values (seconds) → label for pills / display. */
+const TIME_BUDGET_SEC_LABELS = {
+  900: '15 minutes',
+  1800: '30 minutes',
+  3600: '1 hour',
+  5400: '1 hour 30',
+  7200: '2 hours',
+  9000: '2 hours 30',
+  10800: '3 hours',
+};
+
+let fileHandle = null;
+/** @type {FileSystemFileHandle|null} handle waiting for requestPermission (user gesture) */
+let pendingResumeHandle = null;
+let videos = [];
+
+const HANDLE_DB = 'watch-later-v2-fs';
+const HANDLE_STORE = 'meta';
+const HANDLE_KEY = 'watchLaterJson';
+
+function openHandleDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(HANDLE_DB, 1);
+    req.onerror = () => reject(req.error);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(HANDLE_STORE)) db.createObjectStore(HANDLE_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+  });
+}
+
+async function persistFileHandleToIDB(handle) {
+  if (!handle || typeof indexedDB === 'undefined') return;
+  try {
+    const db = await openHandleDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(HANDLE_STORE, 'readwrite');
+      tx.objectStore(HANDLE_STORE).put(handle, HANDLE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch (e) {
+    console.warn('[Watch Later] Could not store file handle', e);
+  }
+}
+
+async function loadFileHandleFromIDB() {
+  if (typeof indexedDB === 'undefined') return null;
+  try {
+    const db = await openHandleDB();
+    const h = await new Promise((resolve, reject) => {
+      const tx = db.transaction(HANDLE_STORE, 'readonly');
+      const r = tx.objectStore(HANDLE_STORE).get(HANDLE_KEY);
+      r.onsuccess = () => resolve(r.result || null);
+      r.onerror = () => reject(r.error);
+    });
+    db.close();
+    return h;
+  } catch {
+    return null;
+  }
+}
+
+async function clearFileHandleFromIDB() {
+  if (typeof indexedDB === 'undefined') return;
+  try {
+    const db = await openHandleDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(HANDLE_STORE, 'readwrite');
+      tx.objectStore(HANDLE_STORE).delete(HANDLE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch (e) {
+    console.warn('[Watch Later] Could not clear stored handle', e);
+  }
+}
+let q = '', catSelValue = '', statusFilter = 'unwatched', durationFilter = '', sortMode = 'default', page = 1;
+/** @type {number|null} Target seconds for “Time budget” filter, or null when off. */
+let timeBudgetTargetSec = null;
+let batchMode = false;
+let batchSelected = new Set();
+
+let categoryModalMode = 'single';
+let categoryModalVideoId = null;
+let categoryModalPick = '';
+
+let addPreview = { id: null, title: '', channel: '', url: '' };
+let addCategoryPick = '';
+
+let pendingImportVideos = null;
+/** @type {'replace'|'merge'|null} */
+let pendingImportMode = null;
+
+function normalizeVideo(v) {
+  const id = String(v.id || '');
+  return {
+    id,
+    title: v.title != null ? String(v.title) : '',
+    channel: v.channel != null ? String(v.channel) : '',
+    url: v.url || (id ? `https://www.youtube.com/watch?v=${id}` : ''),
+    category: typeof v.category === 'string' ? v.category : '',
+    duration: v.duration == null || v.duration === '' ? null : Number(v.duration),
+    watched: Boolean(v.watched),
+    removed: Boolean(v.removed),
+  };
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function tagStyle(cat) {
+  const [bg, fg] = CAT_COLORS[cat] || ['#333', '#fff'];
+  return `background:${bg};color:${fg}`;
+}
+
+function formatDuration(sec) {
+  if (sec == null || !Number.isFinite(sec) || sec < 0) return '';
+  const n = Math.floor(sec);
+  const h = Math.floor(n / 3600);
+  const m = Math.floor((n % 3600) / 60);
+  const s = n % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/** @returns {number|null} seconds, or null to clear */
+function parseDurationInput(raw) {
+  const s = String(raw).trim();
+  if (s === '') return null;
+  if (/^\d+$/.test(s)) {
+    const n = parseInt(s, 10);
+    if (!Number.isFinite(n) || n < 0) throw new Error('Invalid duration');
+    if (n > 86400 * 7) throw new Error('Duration too large');
+    return n;
+  }
+  const parts = s.split(':').map(p => p.trim()).filter(Boolean);
+  if (parts.length < 2 || parts.length > 3) throw new Error('Use M:SS, H:MM:SS, or seconds only');
+  const nums = parts.map(p => {
+    if (!/^\d+$/.test(p)) throw new Error('Invalid number in time');
+    return parseInt(p, 10);
+  });
+  let total;
+  if (parts.length === 2) {
+    const [a, b] = nums;
+    if (b > 59) throw new Error('Seconds must be 0–59 (use H:MM:SS for hours)');
+    total = a * 60 + b;
+  } else {
+    const [h, m, sec] = nums;
+    if (m > 59 || sec > 59) throw new Error('Minutes and seconds must be 0–59');
+    total = h * 3600 + m * 60 + sec;
+  }
+  if (total > 86400 * 7) throw new Error('Duration too large');
+  return total;
+}
+
+let editDurVideoId = null;
+
+function openEditDurationModal(videoId) {
+  editDurVideoId = videoId;
+  const v = videos.find(x => x.id === videoId);
+  const inp = document.getElementById('editDurInput');
+  inp.value = v && v.duration != null && Number.isFinite(Number(v.duration))
+    ? formatDuration(Number(v.duration))
+    : '';
+  document.getElementById('modalEditDuration').classList.add('on');
+  setTimeout(() => inp.focus(), 50);
+}
+
+function closeEditDurationModal() {
+  editDurVideoId = null;
+  document.getElementById('modalEditDuration').classList.remove('on');
+  document.getElementById('editDurInput').value = '';
+}
+
+function parseYouTubeId(raw) {
+  try {
+    const u = new URL(String(raw).trim());
+    const h = u.hostname.replace(/^www\./, '');
+    if (h === 'youtu.be') return u.pathname.slice(1).split('/')[0]?.split('?')[0] || null;
+    if (h.includes('youtube.com')) {
+      const v = u.searchParams.get('v');
+      if (v) return v;
+      const p = u.pathname.split('/').filter(Boolean);
+      if (p[0] === 'shorts' && p[1]) return p[1].split('?')[0];
+      if (p[0] === 'embed' && p[1]) return p[1].split('?')[0];
+    }
+  } catch {}
+  return null;
+}
+
+/** YouTube id for JSON merge dedup: explicit `id` or parsed from `url`. */
+function videoImportDedupeKey(v) {
+  const id = String(v.id || '').trim();
+  if (id) return id;
+  return parseYouTubeId(v.url || '') || null;
+}
+
+function computeJsonMergeIntoExisting(existingVideos, importedNormalized) {
+  const keys = new Set();
+  for (const v of existingVideos) {
+    const k = videoImportDedupeKey(v);
+    if (k) keys.add(k);
+  }
+  const toAdd = [];
+  let skipped = 0;
+  for (const v of importedNormalized) {
+    const k = videoImportDedupeKey(v);
+    if (k && keys.has(k)) {
+      skipped++;
+      continue;
+    }
+    if (k) keys.add(k);
+    toAdd.push(v);
+  }
+  return { toAdd, skipped };
+}
+
+/** First trimmed line in `blob` that parses as a YouTube watch URL (same rules as parseYouTubeId). */
+function firstYouTubeUrlFromText(blob) {
+  if (blob == null || typeof blob !== 'string') return null;
+  for (const line of blob.split(/\r?\n/)) {
+    const t = line.trim();
+    if (t && parseYouTubeId(t)) return t;
+  }
+  return null;
+}
+
+function nonRemovedVideos() {
+  return videos.filter(v => !v.removed);
+}
+
+function categoriesInData() {
+  const set = new Set();
+  nonRemovedVideos().forEach(v => {
+    if (v.category) set.add(v.category);
+  });
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+function matchesStatusFilter(v) {
+  if (statusFilter === 'unwatched') return !v.watched;
+  if (statusFilter === 'watched') return v.watched;
+  return true;
+}
+
+/** Per-category counts for filter dropdown labels: scoped by watched / unwatched / all (same as status filter). */
+function categoryFilterCounts() {
+  const list = nonRemovedVideos().filter(matchesStatusFilter);
+  let uncategorized = 0;
+  const byCat = new Map();
+  for (const v of list) {
+    if (!v.category) uncategorized++;
+    else byCat.set(v.category, (byCat.get(v.category) || 0) + 1);
+  }
+  return { uncategorized, byCat };
+}
+
+function rebuildCatSelect() {
+  const sel = document.getElementById('catSel');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const { uncategorized, byCat } = categoryFilterCounts();
+  const o0 = document.createElement('option');
+  o0.value = '';
+  o0.textContent = 'All categories';
+  sel.appendChild(o0);
+  const oU = document.createElement('option');
+  oU.value = UNCATEGORIZED_VAL;
+  oU.textContent = `Uncategorized (${uncategorized})`;
+  sel.appendChild(oU);
+  categoriesInData().forEach(c => {
+    const o = document.createElement('option');
+    o.value = c;
+    o.textContent = `${c} (${byCat.get(c) || 0})`;
+    sel.appendChild(o);
+  });
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  else sel.value = '';
+  catSelValue = sel.value;
+}
+
+function uiStateStorageKey() {
+  try {
+    if (fileHandle && typeof fileHandle.name === 'string' && fileHandle.name)
+      return 'watch-later-v2-ui:' + fileHandle.name;
+  } catch (_) {}
+  return 'watch-later-v2-ui:default';
+}
+
+function persistUiState() {
+  if (!fileHandle || !document.getElementById('appMain').classList.contains('on')) return;
+  try {
+    sessionStorage.setItem(
+      uiStateStorageKey(),
+      JSON.stringify({
+        q,
+        catSelValue,
+        statusFilter,
+        durationFilter,
+        sortMode,
+        page,
+        timeBudgetTargetSec,
+      }),
+    );
+  } catch (_) {}
+}
+
+function restoreUiState() {
+  if (!fileHandle) return;
+  let o;
+  try {
+    const raw = sessionStorage.getItem(uiStateStorageKey());
+    if (!raw) return;
+    o = JSON.parse(raw);
+  } catch (_) {
+    return;
+  }
+  if (typeof o.q === 'string') {
+    q = o.q;
+    document.getElementById('q').value = q;
+  }
+  if (typeof o.catSelValue === 'string') {
+    const sel = document.getElementById('catSel');
+    if ([...sel.options].some(op => op.value === o.catSelValue)) {
+      catSelValue = o.catSelValue;
+      sel.value = catSelValue;
+    }
+  }
+  if (o.statusFilter === 'watched' || o.statusFilter === 'all' || o.statusFilter === 'unwatched') {
+    statusFilter = o.statusFilter;
+    document.getElementById('statusSel').value = statusFilter;
+  }
+  if (typeof o.durationFilter === 'string') {
+    const dsel = document.getElementById('durSel');
+    if ([...dsel.options].some(op => op.value === o.durationFilter)) {
+      durationFilter = o.durationFilter;
+      dsel.value = durationFilter;
+    }
+  }
+  if (o.sortMode === 'default' || o.sortMode === 'dur-asc' || o.sortMode === 'dur-desc') {
+    sortMode = o.sortMode;
+    document.getElementById('sortSel').value = sortMode;
+  }
+  if (typeof o.page === 'number' && o.page >= 1) page = Math.floor(o.page);
+  const tbs = document.getElementById('timeBudgetSel');
+  if (typeof o.timeBudgetTargetSec === 'number' && Number.isFinite(o.timeBudgetTargetSec) && o.timeBudgetTargetSec > 0) {
+    const s = String(Math.floor(o.timeBudgetTargetSec));
+    if (tbs && [...tbs.options].some(op => op.value === s)) {
+      timeBudgetTargetSec = Math.floor(o.timeBudgetTargetSec);
+      tbs.value = s;
+    } else {
+      timeBudgetTargetSec = null;
+      if (tbs) tbs.value = '';
+    }
+  } else {
+    if (o.timeBudgetTargetSec === null) timeBudgetTargetSec = null;
+    if (tbs) tbs.value = '';
+  }
+}
+
+async function persist() {
+  if (!fileHandle) return;
+  try {
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(videos, null, 2));
+    await writable.close();
+  } catch (e) {
+    showToast('Could not save file: ' + (e.message || String(e)), true);
+  }
+}
+
+/**
+ * @param {FileSystemFileHandle} handle
+ * @param {{ toast?: 'loaded'|'reconnected'|'silent' }} [opts]
+ */
+async function loadFromHandle(handle, opts = {}) {
+  const toast = opts.toast ?? 'loaded';
+  fileHandle = handle;
+  pendingResumeHandle = null;
+  document.getElementById('splashResumeWrap').style.display = 'none';
+
+  let file;
+  try {
+    file = await handle.getFile();
+  } catch (e) {
+    fileHandle = null;
+    await clearFileHandleFromIDB();
+    throw e;
+  }
+  const text = await file.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error('JSON must be an array of videos');
+  } catch (e) {
+    fileHandle = null;
+    throw e;
+  }
+  videos = data.map(normalizeVideo);
+  ensureCategoryColorsForData();
+  await persistFileHandleToIDB(handle);
+
+  const splashEl = document.getElementById('splash');
+  splashEl.classList.remove('splash-ready');
+  splashEl.style.display = 'none';
+  document.getElementById('appMain').classList.add('on');
+
+  document.getElementById('catSel').value = '';
+  document.getElementById('q').value = '';
+  document.getElementById('statusSel').value = 'unwatched';
+  document.getElementById('durSel').value = '';
+  document.getElementById('sortSel').value = 'default';
+  document.getElementById('timeBudgetSel').value = '';
+  page = 1;
+  q = '';
+  catSelValue = '';
+  statusFilter = 'unwatched';
+  durationFilter = '';
+  sortMode = 'default';
+  timeBudgetTargetSec = null;
+  rebuildCatSelect();
+  restoreUiState();
+  rebuildCatSelect();
+  render();
+  if (toast === 'loaded') showToast('File loaded');
+  else if (toast === 'reconnected') showToast('Reconnected to your file');
+}
+
+function whyNoFilePicker() {
+  let proto = '', host = '', port = '';
+  try {
+    proto = window.location.protocol;
+    host = (window.location.hostname || '').toLowerCase();
+    port = window.location.port;
+  } catch (_) {}
+  if (proto === 'file:') {
+    return 'This page is opened as a file (file://). Chrome never exposes the file picker there — use http://localhost (e.g. Live Server) and open this HTML from that URL.';
+  }
+  // Chrome: http://0.0.0.0 is NOT a secure context; showOpenFilePicker stays undefined.
+  if (host === '0.0.0.0') {
+    const p = port ? ':' + port : '';
+    return `Open this app at http://127.0.0.1${p} or http://localhost${p} instead of 0.0.0.0. Chrome only enables the file picker on localhost / 127.0.0.1 over HTTP.`;
+  }
+  if (window.isSecureContext === false && proto === 'http:') {
+    return 'This URL is not a secure context in Chrome (e.g. a raw LAN IP over HTTP). Try http://127.0.0.1 or http://localhost with the same port, or use https.';
+  }
+  if (window.isSecureContext === false) {
+    return 'Not a secure context. Open the app over https:// or http://127.0.0.1 / http://localhost.';
+  }
+  return 'The file picker is unavailable in this environment (e.g. embedded preview). Open index.html in Chrome from http://localhost or https.';
+}
+
+async function openJsonPicker() {
+  pendingResumeHandle = null;
+  document.getElementById('splashResumeWrap').style.display = 'none';
+  if (typeof window.showOpenFilePicker !== 'function') {
+    console.warn('[Watch Later] showOpenFilePicker missing', {
+      protocol: (typeof location !== 'undefined' && location.protocol) || '?',
+      hostname: (typeof location !== 'undefined' && location.hostname) || '?',
+      isSecureContext: window.isSecureContext,
+    });
+    showToast(whyNoFilePicker(), true);
+    return;
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      multiple: false,
+    });
+    await loadFromHandle(handle, { toast: 'loaded' });
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    showToast('Could not open file: ' + (e.message || String(e)), true);
+  }
+}
+
+document.getElementById('openFileBtn').addEventListener('click', openJsonPicker);
+function closeMenuPanel() {
+  const panel = document.getElementById('menuPanel');
+  const btn = document.getElementById('menuBtn');
+  panel.style.display = 'none';
+  btn.setAttribute('aria-expanded', 'false');
+}
+
+document.getElementById('menuBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  const panel = document.getElementById('menuPanel');
+  const open = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+  document.getElementById('menuBtn').setAttribute('aria-expanded', open ? 'false' : 'true');
+});
+document.addEventListener('click', e => {
+  if (!document.getElementById('menuWrap').contains(e.target)) closeMenuPanel();
+});
+
+document.getElementById('menuOpenFile').addEventListener('click', () => {
+  closeMenuPanel();
+  openJsonPicker();
+});
+document.getElementById('menuHelp').addEventListener('click', () => {
+  closeMenuPanel();
+  document.getElementById('modalHelp').classList.add('on');
+});
+document.getElementById('helpModalClose').addEventListener('click', () => {
+  document.getElementById('modalHelp').classList.remove('on');
+});
+
+document.getElementById('splashResumeBtn').addEventListener('click', async () => {
+  const h = pendingResumeHandle;
+  if (!h) return;
+  try {
+    const req = h.requestPermission ? await h.requestPermission({ mode: 'readwrite' }) : 'granted';
+    if (req !== 'granted') {
+      showToast('Permission was not granted. Pick the file again.', true);
+      return;
+    }
+    await loadFromHandle(h, { toast: 'reconnected' });
+  } catch (e) {
+    showToast('Could not reconnect: ' + (e.message || String(e)), true);
+    await clearFileHandleFromIDB();
+    pendingResumeHandle = null;
+    document.getElementById('splashResumeWrap').style.display = 'none';
+  }
+});
+
+function revealSplashChooseUI() {
+  document.getElementById('splash').classList.add('splash-ready');
+}
+
+async function tryAutoResumeFile() {
+  if (typeof window.showOpenFilePicker !== 'function') {
+    revealSplashChooseUI();
+    return;
+  }
+  let handle;
+  try {
+    handle = await loadFileHandleFromIDB();
+  } catch {
+    revealSplashChooseUI();
+    return;
+  }
+  if (!handle) {
+    revealSplashChooseUI();
+    return;
+  }
+
+  let perm = 'granted';
+  if (typeof handle.queryPermission === 'function') {
+    try {
+      perm = await handle.queryPermission({ mode: 'readwrite' });
+    } catch {
+      perm = 'prompt';
+    }
+  }
+
+  if (perm === 'denied') {
+    await clearFileHandleFromIDB();
+    revealSplashChooseUI();
+    return;
+  }
+
+  if (perm === 'prompt') {
+    pendingResumeHandle = handle;
+    revealSplashChooseUI();
+    document.getElementById('splashResumeWrap').style.display = 'block';
+    return;
+  }
+
+  try {
+    await loadFromHandle(handle, { toast: 'silent' });
+  } catch (e) {
+    console.warn('[Watch Later] Auto-resume failed', e);
+    await clearFileHandleFromIDB();
+    revealSplashChooseUI();
+  }
+}
+
+tryAutoResumeFile();
+
+function sumDurationsSeconds(videos) {
+  let s = 0;
+  for (const v of videos) {
+    const d = v.duration;
+    if (d != null && Number.isFinite(Number(d)) && Number(d) > 0) s += Number(d);
+  }
+  return s;
+}
+
+/** Total seconds → e.g. 30m (&lt;1h), 1h 30m, 2h (whole hours). */
+function formatFilteredDurationTotal(totalSec) {
+  if (!totalSec || totalSec <= 0) return '0h';
+  if (totalSec < 3600) {
+    const m = Math.round(totalSec / 60);
+    return m < 1 ? '0m' : `${m}m`;
+  }
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+function matchesDurationFilter(sec, filterVal) {
+  if (!filterVal) return true;
+  if (filterVal === DURATION_UNKNOWN_VAL) {
+    return sec == null || sec === '' || !Number.isFinite(Number(sec));
+  }
+  if (sec == null || !Number.isFinite(Number(sec))) return false;
+  const d = Number(sec);
+  if (filterVal === '0-300') return d >= 0 && d < 300;
+  if (filterVal === '300-900') return d >= 300 && d < 900;
+  if (filterVal === '900-1800') return d >= 900 && d < 1800;
+  if (filterVal === '1800-3600') return d >= 1800 && d < 3600;
+  if (filterVal === '3600+') return d >= 3600;
+  return true;
+}
+
+function getFilteredCandidates() {
+  const qLower = q.toLowerCase();
+  return nonRemovedVideos().filter(v => {
+    let matchCat = true;
+    if (catSelValue === UNCATEGORIZED_VAL) matchCat = v.category === '';
+    else if (catSelValue) matchCat = v.category === catSelValue;
+
+    const matchQ = !qLower ||
+      v.title.toLowerCase().includes(qLower) ||
+      (v.channel || '').toLowerCase().includes(qLower);
+
+    const matchStatus = matchesStatusFilter(v);
+
+    const matchDur = matchesDurationFilter(v.duration, durationFilter);
+
+    return matchCat && matchQ && matchStatus && matchDur;
+  });
+}
+
+/**
+ * Queue fill on a sorted list: walk in order, adding videos until runtime ≥ target.
+ * Videos without a positive known duration are skipped.
+ * If adding a video would pass the target by more than {@link TIME_BUDGET_MAX_OVERSHOOT_SEC},
+ * that video is skipped and the walk continues (so later shorter videos can still be used).
+ */
+function queueFillIdsBySort(sortedVideos, targetSec) {
+  const picked = [];
+  let sum = 0;
+  const target = Number(targetSec);
+  if (!Number.isFinite(target) || target <= 0) return picked;
+
+  for (const v of sortedVideos) {
+    const d = v.duration;
+    if (d == null || !Number.isFinite(Number(d)) || Number(d) <= 0) continue;
+
+    if (sum >= target) break;
+
+    const dSec = Number(d);
+    const nextSum = sum + dSec;
+
+    if (nextSum < target) {
+      picked.push(v.id);
+      sum = nextSum;
+      continue;
+    }
+
+    const overshoot = nextSum - target;
+    if (overshoot <= TIME_BUDGET_MAX_OVERSHOOT_SEC) {
+      picked.push(v.id);
+      break;
+    }
+    /* Would overshoot too much — skip this item, keep scanning. */
+  }
+  return picked;
+}
+
+function getFiltered() {
+  const candidates = getFilteredCandidates();
+  if (timeBudgetTargetSec == null || !Number.isFinite(timeBudgetTargetSec) || timeBudgetTargetSec <= 0) {
+    return candidates;
+  }
+  const sorted = applySortMode(candidates);
+  const pickIds = new Set(queueFillIdsBySort(sorted, timeBudgetTargetSec));
+  return candidates.filter(v => pickIds.has(v.id));
+}
+
+/** Known duration in seconds, or null if missing/invalid. */
+function durationSortKey(v) {
+  const d = v.duration;
+  if (d != null && Number.isFinite(Number(d)) && Number(d) >= 0) return Number(d);
+  return null;
+}
+
+/** Apply sort without mutating the source array. Default preserves JSON / filter order. */
+function applySortMode(filtered) {
+  if (sortMode === 'default') return filtered;
+  const copy = filtered.slice();
+  copy.sort((a, b) => {
+    const da = durationSortKey(a);
+    const db = durationSortKey(b);
+    if (da == null && db == null) return 0;
+    if (da == null) return 1;
+    if (db == null) return -1;
+    if (sortMode === 'dur-asc') return da - db;
+    return db - da;
+  });
+  return copy;
+}
+
+function showAllCategoriesSelected() {
+  return catSelValue === '';
+}
+
+function updateActiveFilterChips(timeBudgetActualSec) {
+  const af = document.getElementById('af');
+  const pillsWrap = document.getElementById('afPills');
+  pillsWrap.innerHTML = '';
+
+  const chips = [];
+  if (catSelValue === UNCATEGORIZED_VAL) {
+    chips.push({ key: 'cat', label: 'Uncategorized' });
+  } else if (catSelValue) {
+    chips.push({ key: 'cat', label: catSelValue });
+  }
+  if (statusFilter === 'watched') chips.push({ key: 'status', label: 'Watched' });
+  else if (statusFilter === 'all') chips.push({ key: 'status', label: 'Everything' });
+  if (durationFilter) {
+    chips.push({
+      key: 'duration',
+      label: DURATION_FILTER_LABELS[durationFilter] || durationFilter,
+    });
+  }
+  const tbOn = timeBudgetTargetSec != null && Number.isFinite(timeBudgetTargetSec) && timeBudgetTargetSec > 0;
+  if (tbOn) {
+    const targetLbl = formatFilteredDurationTotal(timeBudgetTargetSec);
+    const actualLbl =
+      typeof timeBudgetActualSec === 'number' && Number.isFinite(timeBudgetActualSec) && timeBudgetActualSec > 0
+        ? formatFilteredDurationTotal(timeBudgetActualSec)
+        : '0m';
+    const presetLbl = TIME_BUDGET_SEC_LABELS[timeBudgetTargetSec];
+    chips.push({
+      key: 'timeBudget',
+      label: presetLbl ? `Time budget: ${presetLbl}` : `Time budget ${targetLbl}`,
+      title: `Target ${presetLbl || targetLbl} · selected ${actualLbl} — click to remove`,
+    });
+  }
+
+  af.classList.toggle('on', chips.length > 0);
+  document.getElementById('afClearAll').hidden = chips.length === 0;
+
+  for (const { key, label, title } of chips) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pill';
+    btn.title = title || 'Remove this filter';
+    btn.dataset.filterKey = key;
+    btn.appendChild(document.createTextNode(label + ' '));
+    const x = document.createElement('span');
+    x.setAttribute('aria-hidden', 'true');
+    x.textContent = '×';
+    btn.appendChild(x);
+    btn.addEventListener('click', () => clearFilterKey(key));
+    pillsWrap.appendChild(btn);
+  }
+}
+
+function clearFilterKey(key) {
+  if (key === 'cat') {
+    document.getElementById('catSel').value = '';
+    catSelValue = '';
+  } else if (key === 'status') {
+    statusFilter = 'unwatched';
+    document.getElementById('statusSel').value = 'unwatched';
+  } else if (key === 'duration') {
+    durationFilter = '';
+    document.getElementById('durSel').value = '';
+  } else if (key === 'timeBudget') {
+    timeBudgetTargetSec = null;
+    document.getElementById('timeBudgetSel').value = '';
+  }
+  page = 1;
+  render();
+}
+
+function clearAllFilters() {
+  document.getElementById('catSel').value = '';
+  catSelValue = '';
+  statusFilter = 'unwatched';
+  document.getElementById('statusSel').value = 'unwatched';
+  durationFilter = '';
+  document.getElementById('durSel').value = '';
+  document.getElementById('q').value = '';
+  q = '';
+  timeBudgetTargetSec = null;
+  document.getElementById('timeBudgetSel').value = '';
+  page = 1;
+  render();
+}
+
+document.getElementById('afClearAll').addEventListener('click', clearAllFilters);
+
+function syncCatPillSelection(container, selected) {
+  container.querySelectorAll('.cat-pill').forEach(el => {
+    const isNo = el.textContent === 'No category';
+    const sel = isNo ? selected === '' : el.textContent === selected;
+    el.classList.toggle('selected', sel);
+  });
+}
+
+function renderCatGrid(container, selected, onPick, filterRaw = '', emptyHintEl = null) {
+  container.innerHTML = '';
+  const q = filterRaw.trim().toLowerCase();
+  const matchLabel = label => !q || label.toLowerCase().includes(q);
+
+  const pick = c => {
+    onPick(c);
+    syncCatPillSelection(container, c);
+  };
+
+  let count = 0;
+  if (matchLabel('No category')) {
+    const empty = document.createElement('button');
+    empty.type = 'button';
+    empty.className = 'cat-pill';
+    empty.textContent = 'No category';
+    empty.style.background = '#3a3a48';
+    empty.style.color = '#e8e8f0';
+    empty.addEventListener('click', () => pick(''));
+    container.appendChild(empty);
+    count++;
+  }
+  pickerCategories().forEach(cat => {
+    if (!matchLabel(cat)) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cat-pill';
+    const [bg, fg] = CAT_COLORS[cat] || ['#333', '#fff'];
+    btn.style.background = bg;
+    btn.style.color = fg;
+    btn.textContent = cat;
+    btn.addEventListener('click', () => pick(cat));
+    container.appendChild(btn);
+    count++;
+  });
+  syncCatPillSelection(container, selected);
+  if (emptyHintEl) emptyHintEl.hidden = count > 0;
+  return count;
+}
+
+function rerenderCategoryModalGrid() {
+  const grid = document.getElementById('catModalGrid');
+  const fil = document.getElementById('catModalFilter').value;
+  renderCatGrid(
+    grid,
+    categoryModalPick,
+    c => { categoryModalPick = c; },
+    fil,
+    document.getElementById('catModalFilterEmpty'),
+  );
+}
+
+function openCategoryModal(opts) {
+  categoryModalMode = opts.mode;
+  categoryModalVideoId = opts.videoId || null;
+  categoryModalPick = opts.initial || '';
+  const title = document.getElementById('catModalTitle');
+  const hint = document.getElementById('catModalHint');
+  if (opts.mode === 'batch') {
+    title.textContent = 'Set category (batch)';
+    hint.textContent = 'Choose a category for ' + batchSelected.size + ' selected video(s).';
+  } else {
+    title.textContent = 'Set category';
+    hint.textContent = 'Choose a category for this video.';
+  }
+  document.getElementById('catModalFilter').value = '';
+  document.getElementById('catModalNewName').value = '';
+  rerenderCategoryModalGrid();
+  document.getElementById('modalCategory').classList.add('on');
+  document.getElementById('catModalFilter').focus();
+}
+
+function closeCategoryModal() {
+  document.getElementById('modalCategory').classList.remove('on');
+}
+
+document.getElementById('catModalClose').addEventListener('click', closeCategoryModal);
+
+document.getElementById('catModalApply').addEventListener('click', async () => {
+  const cat = categoryModalPick;
+  if (categoryModalMode === 'single' && categoryModalVideoId) {
+    const v = videos.find(x => x.id === categoryModalVideoId);
+    if (v) v.category = cat;
+  } else if (categoryModalMode === 'batch') {
+    batchSelected.forEach(id => {
+      const v = videos.find(x => x.id === id);
+      if (v) v.category = cat;
+    });
+    exitBatchMode();
+  }
+  closeCategoryModal();
+  await persist();
+  rebuildCatSelect();
+  render();
+  showToast('Category updated');
+});
+
+function filterByCategoryFromTag(catName, ev) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  document.getElementById('catSel').value = catName;
+  catSelValue = catName;
+  page = 1;
+  render();
+}
+
+function openUncatPicker(videoId, ev) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  const v = videos.find(x => x.id === videoId);
+  openCategoryModal({ mode: 'single', videoId, initial: v ? v.category : '' });
+}
+
+function thumbUrl(id) {
+  return `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+}
+
+function setAddPreviewThumbnail(videoId, videoTitle) {
+  const thumb = document.getElementById('addPreviewThumb');
+  thumb.innerHTML = '';
+  const img = document.createElement('img');
+  img.alt = videoTitle ? String(videoTitle) : 'Video thumbnail';
+  img.loading = 'eager';
+  img.src = thumbUrl(videoId);
+  img.addEventListener('error', () => {
+    thumb.innerHTML = '';
+    thumb.appendChild(Object.assign(document.createElement('div'), { className: 'no-thumb', textContent: '▶' }));
+  }, { once: true });
+  thumb.appendChild(img);
+}
+
+function makeCard(v) {
+  const a = document.createElement('a');
+  a.className = 'card' + (v.watched ? ' is-watched' : '');
+  a.href = v.url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.dataset.id = v.id;
+
+  const dur = formatDuration(v.duration);
+  const durHtml = dur ? `<span class="dur-pill">${escapeHtml(dur)}</span>` : '';
+
+  let tagHtml = '';
+  if (showAllCategoriesSelected()) {
+    if (!v.category) {
+      tagHtml = `<span class="tag tag-uncat" data-uncat="${escapeHtml(v.id)}">Uncategorized</span>`;
+    } else {
+      const safeCat = v.category.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      tagHtml = `<span class="tag" style="${tagStyle(v.category)}" data-filter-cat="${escapeHtml(v.category)}">${escapeHtml(v.category)}</span>`;
+    }
+  }
+
+  a.innerHTML = `
+    <div class="thumb">
+      <img src="${thumbUrl(v.id)}" alt="" loading="lazy" data-yt="${escapeHtml(v.id)}">
+      <div class="watched-overlay">✓ Watched</div>
+      <div class="batch-marker">✓</div>
+      ${durHtml}
+      <div class="ov"><div class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
+    </div>
+    <div class="body">
+      <div class="title">${escapeHtml(v.title)}</div>
+      <div class="meta">
+        <span class="chan">${escapeHtml(v.channel || '')}</span>
+        ${tagHtml}
+      </div>
+    </div>`;
+
+  const img = a.querySelector('img');
+  img.addEventListener('error', () => {
+    const wrap = img.parentNode;
+    wrap.replaceChild(Object.assign(document.createElement('div'), { className: 'no-thumb', textContent: '▶' }), img);
+  });
+
+  const uncat = a.querySelector('[data-uncat]');
+  if (uncat) {
+    uncat.addEventListener('click', e => openUncatPicker(uncat.getAttribute('data-uncat'), e));
+  }
+  const filt = a.querySelector('[data-filter-cat]');
+  if (filt) {
+    filt.addEventListener('click', e => filterByCategoryFromTag(filt.getAttribute('data-filter-cat'), e));
+  }
+
+  let pressTimer;
+  let longPressed = false;
+  const startPress = () => {
+    longPressed = false;
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      if (!batchMode) enterBatchMode();
+      toggleCardSelect(a, v.id);
+    }, 500);
+  };
+  const cancelPress = () => clearTimeout(pressTimer);
+
+  a.addEventListener('mousedown', e => {
+    if (e.button === 0) startPress();
+    if (batchMode) e.preventDefault();
+  });
+  a.addEventListener('touchstart', startPress, { passive: true });
+  a.addEventListener('mouseup', cancelPress);
+  a.addEventListener('mouseleave', cancelPress);
+  a.addEventListener('touchend', cancelPress);
+  a.addEventListener('touchmove', cancelPress);
+  a.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    if (e.pointerType === 'touch' || longPressed) return;
+    if (!batchMode) enterBatchMode();
+    toggleCardSelect(a, v.id);
+  });
+  a.addEventListener('click', e => {
+    if (longPressed) {
+      e.preventDefault();
+      e.stopPropagation();
+      longPressed = false;
+      return;
+    }
+    if (batchMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleCardSelect(a, v.id);
+    }
+  });
+
+  if (batchSelected.has(v.id)) a.classList.add('batch-selected');
+
+  return a;
+}
+
+function enterBatchMode() {
+  batchMode = true;
+  batchSelected.clear();
+  document.getElementById('batchBar').classList.add('on');
+  updateBatchCount();
+}
+
+function exitBatchMode() {
+  batchMode = false;
+  batchSelected.clear();
+  document.getElementById('batchBar').classList.remove('on');
+  document.querySelectorAll('.card.batch-selected').forEach(c => c.classList.remove('batch-selected'));
+}
+
+function toggleCardSelect(card, id) {
+  if (batchSelected.has(id)) {
+    batchSelected.delete(id);
+    card.classList.remove('batch-selected');
+  } else {
+    batchSelected.add(id);
+    card.classList.add('batch-selected');
+  }
+  updateBatchCount();
+}
+
+function updateBatchCount() {
+  const n = batchSelected.size;
+  document.getElementById('batchCount').textContent = n === 0 ? 'None selected' : `${n} selected`;
+  const durEl = document.getElementById('batchDurTotal');
+  if (n === 0) {
+    durEl.textContent = '';
+    durEl.hidden = true;
+    durEl.removeAttribute('title');
+  } else {
+    const selectedVideos = [...batchSelected].map(id => videos.find(x => x.id === id)).filter(Boolean);
+    const sumSec = sumDurationsSeconds(selectedVideos);
+    const withoutDur = selectedVideos.filter(v => {
+      const d = v.duration;
+      return !(d != null && Number.isFinite(Number(d)) && Number(d) > 0);
+    }).length;
+    durEl.textContent = `${formatFilteredDurationTotal(sumSec)} total`;
+    durEl.hidden = false;
+    if (withoutDur > 0 && sumSec > 0) {
+      durEl.title = `${withoutDur} selected video${withoutDur === 1 ? '' : 's'} ${withoutDur === 1 ? 'has' : 'have'} no length; total includes the others only.`;
+    } else if (withoutDur > 0) {
+      durEl.title = 'None of the selected videos have a stored length.';
+    } else {
+      durEl.removeAttribute('title');
+    }
+  }
+  const editDurBtn = document.getElementById('batchEditDur');
+  editDurBtn.disabled = n !== 1;
+  editDurBtn.title = n === 1 ? 'Edit length for the selected video' : 'Select exactly one video';
+}
+
+function visibleCardIds() {
+  return [...document.querySelectorAll('.card')].map(c => c.dataset.id);
+}
+
+document.getElementById('batchSelectAll').addEventListener('click', async () => {
+  const ids = visibleCardIds();
+  const allOn = ids.length && ids.every(id => batchSelected.has(id));
+  if (allOn) {
+    batchSelected.clear();
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('batch-selected'));
+  } else {
+    ids.forEach(id => batchSelected.add(id));
+    document.querySelectorAll('.card').forEach(c => {
+      if (batchSelected.has(c.dataset.id)) c.classList.add('batch-selected');
+    });
+  }
+  updateBatchCount();
+});
+
+document.getElementById('batchSetCat').addEventListener('click', () => {
+  if (batchSelected.size === 0) return;
+  let initial = '';
+  const first = [...batchSelected][0];
+  const fv = videos.find(x => x.id === first);
+  if (fv) {
+    const same = [...batchSelected].every(id => videos.find(x => x.id === id)?.category === fv.category);
+    if (same) initial = fv.category || '';
+  }
+  openCategoryModal({ mode: 'batch', initial });
+});
+
+document.getElementById('batchToggleWatched').addEventListener('click', async () => {
+  if (batchSelected.size === 0) return;
+  batchSelected.forEach(id => {
+    const v = videos.find(x => x.id === id);
+    if (v) v.watched = !v.watched;
+  });
+  const n = batchSelected.size;
+  exitBatchMode();
+  await persist();
+  render();
+  showToast(`${n} video${n !== 1 ? 's' : ''} — watched toggled`);
+});
+
+document.getElementById('batchRemove').addEventListener('click', async () => {
+  if (batchSelected.size === 0) return;
+  batchSelected.forEach(id => {
+    const v = videos.find(x => x.id === id);
+    if (v) v.removed = true;
+  });
+  const n = batchSelected.size;
+  exitBatchMode();
+  await persist();
+  rebuildCatSelect();
+  render();
+  showToast(`${n} video${n !== 1 ? 's' : ''} removed`);
+});
+
+document.getElementById('batchCancel').addEventListener('click', () => {
+  exitBatchMode();
+  render();
+});
+
+document.getElementById('q').addEventListener('input', e => {
+  q = e.target.value.trim();
+  page = 1;
+  render();
+});
+document.getElementById('catSel').addEventListener('change', e => {
+  catSelValue = e.target.value;
+  page = 1;
+  render();
+});
+document.getElementById('statusSel').addEventListener('change', e => {
+  statusFilter = e.target.value;
+  page = 1;
+  rebuildCatSelect();
+  render();
+});
+document.getElementById('durSel').addEventListener('change', e => {
+  durationFilter = e.target.value;
+  page = 1;
+  render();
+});
+
+document.getElementById('sortSel').addEventListener('change', e => {
+  const v = e.target.value;
+  sortMode = v === 'dur-asc' || v === 'dur-desc' ? v : 'default';
+  page = 1;
+  render();
+});
+
+document.getElementById('timeBudgetSel').addEventListener('change', e => {
+  const raw = e.target.value;
+  if (raw === '') {
+    timeBudgetTargetSec = null;
+  } else {
+    const n = parseInt(raw, 10);
+    timeBudgetTargetSec = Number.isFinite(n) && n > 0 ? n : null;
+    if (timeBudgetTargetSec == null) e.target.value = '';
+  }
+  page = 1;
+  render();
+  if (timeBudgetTargetSec != null && getFiltered().length === 0) {
+    showToast('No videos fit that time budget in the current list — try other filters or a different budget', true);
+  }
+});
+
+document.getElementById('loadMoreBtn').addEventListener('click', () => {
+  page++;
+  render();
+});
+
+function render() {
+  const forList = getFiltered();
+  const filtered = applySortMode(forList);
+  const timeBudgetActualSec =
+    timeBudgetTargetSec != null && Number.isFinite(timeBudgetTargetSec) && timeBudgetTargetSec > 0
+      ? sumDurationsSeconds(forList)
+      : null;
+  const maxPage = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE) || 1);
+  if (page > maxPage) page = maxPage;
+  const grid = document.getElementById('grid');
+  const slice = filtered.slice(0, page * PAGE_SIZE);
+
+  if (page === 1) {
+    grid.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    slice.forEach(v => frag.appendChild(makeCard(v)));
+    grid.appendChild(frag);
+  } else {
+    const existing = new Set([...grid.querySelectorAll('.card')].map(c => c.dataset.id));
+    const frag = document.createDocumentFragment();
+    slice.forEach(v => {
+      if (!existing.has(v.id)) frag.appendChild(makeCard(v));
+    });
+    grid.appendChild(frag);
+  }
+
+  document.getElementById('empty').classList.toggle('on', filtered.length === 0);
+  document.getElementById('lm').classList.toggle('on', filtered.length > page * PAGE_SIZE);
+
+  const listNonRemoved = nonRemovedVideos();
+  const total = listNonRemoved.length;
+  const totalUnwatched = listNonRemoved.reduce((n, v) => n + (v.watched ? 0 : 1), 0);
+  document.getElementById('totalBadge').textContent = String(totalUnwatched);
+  const filteredEl = document.getElementById('filteredBadge');
+  const filteredDurEl = document.getElementById('filteredDurBadge');
+  const narrowedFromFullList = filtered.length < total;
+  const showFilteredBadge = narrowedFromFullList && filtered.length !== totalUnwatched;
+  filteredEl.textContent = String(filtered.length);
+  filteredEl.hidden = !showFilteredBadge;
+
+  const videosForDurationSum = narrowedFromFullList ? filtered : nonRemovedVideos();
+  filteredDurEl.textContent = formatFilteredDurationTotal(sumDurationsSeconds(videosForDurationSum));
+  filteredDurEl.hidden = false;
+  filteredDurEl.title = narrowedFromFullList
+    ? 'Total length of videos matching current filters (entries without duration omitted)'
+    : 'Total length of all videos in your list (not removed; entries without duration omitted)';
+
+  updateActiveFilterChips(timeBudgetActualSec);
+  if (batchMode) updateBatchCount();
+  persistUiState();
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportNonRemoved() {
+  return nonRemovedVideos().map(({ removed, ...rest }) => rest);
+}
+
+document.querySelectorAll('.export-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    closeMenuPanel();
+    const kind = btn.getAttribute('data-export');
+    const label = `watch_later_${new Date().toISOString().slice(0, 10)}`;
+    if (kind === 'json') {
+      const data = exportNonRemoved();
+      downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), label + '.json');
+    } else if (kind === 'csv') {
+      const data = exportNonRemoved();
+      const header = ['id', 'title', 'channel', 'category', 'duration', 'watched', 'url'];
+      const rows = data.map(v =>
+        header.map(k => {
+          let val = v[k];
+          if (k === 'duration' && val == null) val = '';
+          if (typeof val === 'boolean') val = val ? 'true' : 'false';
+          return `"${String(val ?? '').replace(/"/g, '""')}"`;
+        }).join(',')
+      );
+      const csv = [header.join(','), ...rows].join('\n');
+      downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), label + '.csv');
+    } else if (kind === 'cmd') {
+      navigator.clipboard.writeText('python3 fetch_durations.py').then(() => {
+        showToast('Command copied — paste in your terminal');
+      }).catch(() => showToast('Could not copy to clipboard', true));
+    }
+  });
+});
+
+function showToast(msg, isError) {
+  const el = document.getElementById('toast');
+  const msgEl = document.getElementById('toastMsg');
+  msgEl.textContent = msg;
+  el.classList.add('show');
+  el.style.display = 'flex';
+  el.style.borderColor = isError ? '#ff6b6b' : 'var(--border)';
+  el.style.opacity = '1';
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => { el.classList.remove('show'); el.style.display = 'none'; }, 200);
+  }, 3000);
+}
+
+document.getElementById('menuImport').addEventListener('click', () => {
+  closeMenuPanel();
+  pendingImportMode = 'replace';
+  document.getElementById('importFile').click();
+});
+
+document.getElementById('menuImportMerge').addEventListener('click', () => {
+  closeMenuPanel();
+  pendingImportMode = 'merge';
+  document.getElementById('importFile').click();
+});
+
+document.getElementById('importFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) {
+    pendingImportMode = null;
+    return;
+  }
+  const mode = pendingImportMode || 'replace';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) {
+        showToast('Imported JSON must be an array', true);
+        pendingImportMode = null;
+        return;
+      }
+      const normalized = data.map(normalizeVideo);
+      const titleEl = document.getElementById('importModalTitle');
+      if (mode === 'merge') {
+        const { toAdd, skipped } = computeJsonMergeIntoExisting(videos, normalized);
+        if (toAdd.length === 0) {
+          showToast(skipped > 0 ? 'Nothing new to add — all videos are already in your list' : 'Nothing to add from this file', true);
+          pendingImportMode = null;
+          return;
+        }
+        pendingImportMode = 'merge';
+        pendingImportVideos = normalized;
+        titleEl.textContent = 'Merge from JSON';
+        document.getElementById('importSummary').textContent =
+          `${normalized.length} in file — ${toAdd.length} new will be added, ${skipped} skipped (already in your list). Existing entries are unchanged.`;
+      } else {
+        pendingImportMode = 'replace';
+        pendingImportVideos = normalized;
+        const watched = normalized.filter(v => v.watched).length;
+        const removed = normalized.filter(v => v.removed).length;
+        titleEl.textContent = 'Import JSON and overwrite';
+        document.getElementById('importSummary').textContent =
+          `${normalized.length} videos — ${watched} watched, ${removed} marked removed. This replaces your current list in the open file when you confirm.`;
+      }
+      document.getElementById('modalImportConfirm').classList.add('on');
+    } catch (err) {
+      showToast('Invalid JSON: ' + err.message, true);
+      pendingImportMode = null;
+    }
+  };
+  reader.readAsText(file);
+});
+
+function closeImportConfirmModal() {
+  pendingImportVideos = null;
+  pendingImportMode = null;
+  document.getElementById('importModalTitle').textContent = 'Import JSON and overwrite';
+  document.getElementById('modalImportConfirm').classList.remove('on');
+}
+
+document.getElementById('importModalClose').addEventListener('click', closeImportConfirmModal);
+
+document.getElementById('importConfirmBtn').addEventListener('click', async () => {
+  if (!pendingImportVideos || !pendingImportMode) return;
+  const mode = pendingImportMode;
+  if (mode === 'merge') {
+    const { toAdd } = computeJsonMergeIntoExisting(videos, pendingImportVideos);
+    videos = [...videos, ...toAdd];
+    showToast(toAdd.length ? `Added ${toAdd.length} video${toAdd.length === 1 ? '' : 's'}` : 'Nothing added');
+  } else {
+    videos = pendingImportVideos;
+    showToast('Import applied');
+  }
+  pendingImportVideos = null;
+  pendingImportMode = null;
+  document.getElementById('importModalTitle').textContent = 'Import JSON and overwrite';
+  ensureCategoryColorsForData();
+  document.getElementById('modalImportConfirm').classList.remove('on');
+  await persist();
+  rebuildCatSelect();
+  page = 1;
+  render();
+});
+
+function resetAddModal() {
+  document.getElementById('addUrl').value = '';
+  document.getElementById('addPreview').classList.remove('is-open');
+  document.getElementById('addFetchBtn').style.display = 'inline-block';
+  addPreview = { id: null, title: '', channel: '', url: '' };
+  addCategoryPick = '';
+  const th = document.getElementById('addPreviewThumb');
+  if (th) th.innerHTML = '';
+  document.getElementById('addPreviewTitle').textContent = '';
+  document.getElementById('addPreviewChan').textContent = '';
+  const addF = document.getElementById('addCatFilter');
+  if (addF) addF.value = '';
+  const addN = document.getElementById('addCatNewName');
+  if (addN) addN.value = '';
+}
+
+function rerenderAddCatGrid() {
+  const grid = document.getElementById('addCatGrid');
+  const fil = document.getElementById('addCatFilter').value;
+  renderCatGrid(
+    grid,
+    addCategoryPick,
+    c => { addCategoryPick = c; },
+    fil,
+    document.getElementById('addCatFilterEmpty'),
+  );
+}
+
+async function addModalFetchMetadata() {
+  const url = document.getElementById('addUrl').value.trim();
+  const id = parseYouTubeId(url);
+  if (!id) {
+    showToast('Could not parse a YouTube video ID from that URL', true);
+    return;
+  }
+  try {
+    const oe = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+    const res = await fetch(oe);
+    if (!res.ok) throw new Error('oEmbed failed');
+    const j = await res.json();
+    addPreview = {
+      id,
+      title: j.title || 'Untitled',
+      channel: j.author_name || '',
+      url: url.includes('youtu') ? url : `https://www.youtube.com/watch?v=${id}`,
+    };
+    document.getElementById('addPreviewTitle').textContent = addPreview.title;
+    document.getElementById('addPreviewChan').textContent = addPreview.channel;
+    setAddPreviewThumbnail(id, addPreview.title);
+    document.getElementById('addPreview').classList.add('is-open');
+    document.getElementById('addFetchBtn').style.display = 'none';
+    rerenderAddCatGrid();
+    requestAnimationFrame(() => {
+      document.getElementById('addCatFilter').focus();
+    });
+  } catch {
+    showToast('Could not fetch title & channel from YouTube', true);
+  }
+}
+
+const addUrlInput = document.getElementById('addUrl');
+
+document.getElementById('btnAddVideo').addEventListener('click', () => {
+  resetAddModal();
+  rerenderAddCatGrid();
+  document.getElementById('modalAdd').classList.add('on');
+  // Focus synchronously so paste (e.g. right after N shortcut) goes into this field, not the still-focused search bar.
+  addUrlInput.focus();
+  if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+    navigator.clipboard.readText().then(raw => {
+      const hit = firstYouTubeUrlFromText(raw);
+      if (!hit) return;
+      addUrlInput.value = hit;
+      const len = hit.length;
+      addUrlInput.setSelectionRange(len, len);
+    }).catch(() => {});
+  }
+});
+addUrlInput.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  addModalFetchMetadata();
+});
+/** Ensures ⌘V / Ctrl+V paste works even when global shortcuts or Safari quirks interfere with default behavior. */
+addUrlInput.addEventListener('paste', e => {
+  if (e.defaultPrevented) return;
+  const cd = e.clipboardData;
+  if (!cd) return;
+  const text = cd.getData('text/plain');
+  if (typeof text !== 'string') return;
+  e.preventDefault();
+  const el = addUrlInput;
+  const start = el.selectionStart != null ? el.selectionStart : el.value.length;
+  const end = el.selectionEnd != null ? el.selectionEnd : el.value.length;
+  const v = el.value;
+  el.value = v.slice(0, start) + text + v.slice(end);
+  const caret = start + text.length;
+  el.setSelectionRange(caret, caret);
+});
+
+document.getElementById('catModalFilter').addEventListener('input', rerenderCategoryModalGrid);
+document.getElementById('addCatFilter').addEventListener('input', rerenderAddCatGrid);
+
+function wireNewCategoryControls(nameInputId, filterId, btnId, setPick, rerenderGrid, afterCreate) {
+  const go = () => {
+    const inp = document.getElementById(nameInputId);
+    const created = registerNewCategory(inp.value);
+    if (!created) return;
+    setPick(created);
+    inp.value = '';
+    document.getElementById(filterId).value = '';
+    rerenderGrid();
+    afterCreate();
+  };
+  document.getElementById(btnId).addEventListener('click', go);
+  document.getElementById(nameInputId).addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      go();
+    }
+  });
+}
+
+wireNewCategoryControls(
+  'catModalNewName',
+  'catModalFilter',
+  'catModalNewBtn',
+  c => { categoryModalPick = c; },
+  rerenderCategoryModalGrid,
+  () => showToast('Category added — Apply saves to your list'),
+);
+
+wireNewCategoryControls(
+  'addCatNewName',
+  'addCatFilter',
+  'addCatNewBtn',
+  c => { addCategoryPick = c; },
+  rerenderAddCatGrid,
+  () => showToast('Category added'),
+);
+
+function closeAddModal() {
+  document.getElementById('modalAdd').classList.remove('on');
+  resetAddModal();
+}
+
+document.getElementById('addModalClose').addEventListener('click', closeAddModal);
+
+/** After fetch, plain Enter always submits Add video (any focus: pills, search, new name, URL, close — empty category OK). Capture + stopPropagation so other Enter handlers do not run. Skip only addVideoBtn to avoid double submit when that button is focused. */
+document.getElementById('modalAdd').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.isComposing) return;
+  if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!document.getElementById('addPreview').classList.contains('is-open')) return;
+  const t = e.target;
+  if (t && t.id === 'addVideoBtn') return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  document.getElementById('addVideoBtn').click();
+}, true);
+
+document.getElementById('addFetchBtn').addEventListener('click', () => {
+  addModalFetchMetadata();
+});
+
+document.getElementById('addVideoBtn').addEventListener('click', async () => {
+  if (!addPreview.id) return;
+  const existing = videos.find(v => v.id === addPreview.id);
+  if (existing && !existing.removed) {
+    showToast('Already in your list');
+    closeAddModal();
+    return;
+  }
+  if (existing && existing.removed) {
+    existing.removed = false;
+    existing.title = addPreview.title;
+    existing.channel = addPreview.channel;
+    existing.url = addPreview.url;
+    existing.category = addCategoryPick;
+    existing.duration = null;
+    existing.watched = false;
+    await persist();
+    rebuildCatSelect();
+    page = 1;
+    render();
+    closeAddModal();
+    showToast('Video restored');
+    return;
+  }
+  videos.unshift({
+    id: addPreview.id,
+    title: addPreview.title,
+    channel: addPreview.channel,
+    url: addPreview.url,
+    category: addCategoryPick,
+    duration: null,
+    watched: false,
+    removed: false,
+  });
+  await persist();
+  rebuildCatSelect();
+  page = 1;
+  render();
+  closeAddModal();
+  showToast('Video added');
+});
+
+document.getElementById('batchEditDur').addEventListener('click', () => {
+  if (batchSelected.size !== 1) return;
+  const id = [...batchSelected][0];
+  openEditDurationModal(id);
+});
+
+document.getElementById('editDurClose').addEventListener('click', closeEditDurationModal);
+
+document.getElementById('editDurSave').addEventListener('click', async () => {
+  if (!editDurVideoId) return;
+  const text = document.getElementById('editDurInput').value;
+  let sec;
+  try {
+    sec = parseDurationInput(text);
+  } catch (err) {
+    showToast(err.message || 'Invalid duration', true);
+    return;
+  }
+  const v = videos.find(x => x.id === editDurVideoId);
+  if (!v) return;
+  v.duration = sec;
+  closeEditDurationModal();
+  await persist();
+  render();
+  showToast(sec == null ? 'Duration cleared' : 'Duration saved');
+});
+
+function shortcutTargetIsTextField(el) {
+  if (!el || !el.tagName) return false;
+  const tag = el.tagName;
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (tag === 'INPUT') {
+    const type = (el.type || '').toLowerCase();
+    if (type === 'button' || type === 'submit' || type === 'reset' || type === 'checkbox' || type === 'radio') return false;
+    return true;
+  }
+  if (el.isContentEditable) return true;
+  return false;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    /** Same handlers as the modal X buttons; modals before batch so e.g. Set category closes first while batch is open. */
+    const modalClosePairs = [
+      ['modalEditDuration', 'editDurClose'],
+      ['modalCategory', 'catModalClose'],
+      ['modalAdd', 'addModalClose'],
+      ['modalImportConfirm', 'importModalClose'],
+      ['modalHelp', 'helpModalClose'],
+    ];
+    for (const [backdropId, closeBtnId] of modalClosePairs) {
+      const backdrop = document.getElementById(backdropId);
+      if (backdrop && backdrop.classList.contains('on')) {
+        document.getElementById(closeBtnId).click();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
+    if (batchMode) {
+      exitBatchMode();
+      render();
+      e.preventDefault();
+    }
+    return;
+  }
+
+  // Never run N/F or other shortcut logic while the add-video URL field is focused (avoids interfering with ⌘V, etc.).
+  if (document.activeElement === document.getElementById('addUrl')) return;
+
+  if (!document.getElementById('appMain').classList.contains('on')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (document.getElementById('modalHelp').classList.contains('on')) return;
+  const addBd = document.getElementById('modalAdd');
+  if (addBd.classList.contains('on')) {
+    const t = e.target;
+    if (t && t.nodeType === 1 && addBd.contains(t)) return;
+  }
+  if (shortcutTargetIsTextField(e.target) || shortcutTargetIsTextField(document.activeElement)) return;
+
+  const ch = e.key.length === 1 ? e.key.toLowerCase() : '';
+  if (ch === 'n') {
+    e.preventDefault();
+    document.getElementById('btnAddVideo').click();
+    return;
+  }
+  if (ch === 'f') {
+    e.preventDefault();
+    const q = document.getElementById('q');
+    q.focus();
+    q.select();
+  }
+});
+</script>
+</body>
+</html>
