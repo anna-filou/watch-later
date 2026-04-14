@@ -6,8 +6,9 @@ __pycache__/
 .venv/
 venv/
 
-# Local secrets (e.g. API keys for fetch_durations.py)
+# Local config (paths, API keys). Copy from README examples; never commit real values.
 .env
+watch_later.json
 
 # macOS
 .DS_Store

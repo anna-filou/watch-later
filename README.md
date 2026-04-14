@@ -75,13 +75,13 @@ python3 fetch_durations.py
 
 ### Where the script looks for `watch_later.json`
 
-If your JSON lives in a synced folder (for example Google Drive) instead of next to the script, open `fetch_durations.py` and set **`WATCH_LATER_JSON_PATH`** near the top to the full path of your file, e.g. on macOS:
+If your JSON lives in a synced folder (for example Google Drive) instead of next to the script, add a **`.env`** file next to `fetch_durations.py` (that file is gitignored) with:
 
-```text
-/Users/you/Library/CloudStorage/GoogleDrive-you@email.com/My Drive/watch_later/watch_later.json
+```bash
+WATCH_LATER_JSON_PATH="/Users/you/Library/CloudStorage/GoogleDrive-you@email.com/My Drive/watch_later/watch_later.json"
 ```
 
-Leave it as `""` to keep using `watch_later.json` in the same directory as `fetch_durations.py`.
+You can set the same variable in your shell instead of `.env`. Omit it to use `watch_later.json` in the same directory as `fetch_durations.py`.
 
 **`--file` on the command line overrides** `WATCH_LATER_JSON_PATH` for that run only.
 
@@ -92,7 +92,7 @@ python3 fetch_durations.py --file /path/to/watch_later.json
 python3 fetch_durations.py --limit 50
 ```
 
-The app can copy `python3 fetch_durations.py` from the menu after you load a file; that matches a configured `WATCH_LATER_JSON_PATH` or a JSON file next to the script.
+The app can copy `python3 fetch_durations.py` from the menu after you load a file; that matches `WATCH_LATER_JSON_PATH` from `.env`/environment or a JSON file next to the script.
 
 ## Repo layout
 

@@ -7,25 +7,39 @@ and writes the results back to the same file after each batch
 
 Usage:
     python3 fetch_durations.py
-    python3 fetch_durations.py --file /path/to/watch_later.json   # overrides path below
+    python3 fetch_durations.py --file /path/to/watch_later.json   # overrides .env / env
     python3 fetch_durations.py --limit 50   # only fetch first N missing
+
+Default JSON path: WATCH_LATER_JSON_PATH in the environment, or in a .env file next to
+this script (gitignored), else watch_later.json in this directory.
 """
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Paste the full path to your watch_later.json here (e.g. Google Drive sync).
-# Example macOS Google Drive:
-#   "/Users/you/Library/CloudStorage/GoogleDrive-you@email.com/My Drive/watch_later/watch_later.json"
-# Leave "" to use watch_later.json in the same folder as this script.
-# --file on the command line always overrides this.
-# ---------------------------------------------------------------------------
-WATCH_LATER_JSON_PATH = "/Users/anna/My Drive/Sync/Watch Later JSON/watch_later.json"
+
+def load_local_env() -> None:
+    """Load KEY=value lines from .env next to this script (does not override existing os.environ)."""
+    path = Path(__file__).resolve().parent / ".env"
+    if not path.is_file():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+            val = val[1:-1]
+        if key and key not in os.environ:
+            os.environ[key] = val
 
 def parse_args():
     p = argparse.ArgumentParser(description="Fetch missing YouTube durations via yt-dlp")
@@ -33,7 +47,7 @@ def parse_args():
         "--file",
         default=None,
         metavar="PATH",
-        help="Path to watch_later.json (overrides WATCH_LATER_JSON_PATH in this script)",
+        help="Path to watch_later.json (overrides WATCH_LATER_JSON_PATH from env / .env)",
     )
     p.add_argument("--limit", type=int, default=None, help="Max number of missing durations to fetch")
     return p.parse_args()
@@ -42,9 +56,9 @@ def parse_args():
 def resolved_json_path(cli_file: str | None) -> Path:
     if cli_file:
         return Path(cli_file).expanduser().resolve()
-    configured = (WATCH_LATER_JSON_PATH or "").strip()
-    if configured:
-        return Path(configured).expanduser().resolve()
+    env_path = (os.environ.get("WATCH_LATER_JSON_PATH") or "").strip()
+    if env_path:
+        return Path(env_path).expanduser().resolve()
     return Path(__file__).resolve().parent / "watch_later.json"
 
 def fetch_durations_batch(
@@ -118,6 +132,7 @@ def write_videos(path: Path, videos: list) -> None:
 
 
 def main():
+    load_local_env()
     args = parse_args()
     data_path = resolved_json_path(args.file)
 
