@@ -160,6 +160,9 @@ a.card:hover .thumb img{transform:scale(1.04)}
 .menu-sep{height:1px;background:var(--border);margin:6px 0}
 .menu-item{width:100%;background:none;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:10px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .12s}
 .menu-item:hover{background:rgba(255,255,255,.05)}
+.menu-item:disabled{opacity:.45;cursor:not-allowed;color:var(--muted2)}
+.menu-item:disabled:hover{background:transparent}
+.menu-item:disabled svg{color:var(--muted2)}
 .menu-item svg{flex-shrink:0;color:var(--muted)}
 .menu-item:hover svg{color:var(--accent)}
 .menu-item-label{flex:1;min-width:0;line-height:1.35}
@@ -296,6 +299,10 @@ input.modal-input:focus{border-color:var(--accent)}
           <button type="button" class="menu-item" id="menuImportMerge" role="menuitem">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             <span class="menu-item-label">Merge from JSON</span>
+          </button>
+          <button type="button" class="menu-item" id="menuRestoreRemoved" role="menuitem" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <span class="menu-item-label">Restore removed videos</span>
           </button>
           <div class="menu-subhead" role="presentation">Export</div>
           <button type="button" class="menu-item export-item" data-export="json" role="menuitem">
@@ -526,6 +533,7 @@ input.modal-input:focus{border-color:var(--accent)}
       </ul>
       <h4>Batch Mode</h4>
       Right-click or long-press a card to select it, then click more cards to add to the selection. Use <strong>Edit duration</strong> when exactly one card is selected. Press Esc to exit.
+      <p><strong>Remove</strong> (batch mode) hides videos and sets <code>removed</code> plus a removal time in the same JSON file. For about 12 hours you can use <strong>Menu → Restore removed videos</strong>; after that, those rows are deleted from the file permanently.</p>
       <h4>Keyboard</h4>
       <ul>
         <li><strong>N</strong> — Add video</li>
@@ -661,6 +669,10 @@ let videos = [];
 const HANDLE_DB = 'watch-later-v2-fs';
 const HANDLE_STORE = 'meta';
 const HANDLE_KEY = 'watchLaterJson';
+/** @deprecated No longer written; cleared when the main file handle is cleared. */
+const LEGACY_BACKUP_HANDLE_KEY = 'watchLaterRemovedBackup';
+/** Entries stay in the main JSON as `removed: true` for this long, then are dropped from the array. */
+const REMOVED_RETENTION_MS = 12 * 60 * 60 * 1000;
 
 function openHandleDB() {
   return new Promise((resolve, reject) => {
@@ -713,7 +725,9 @@ async function clearFileHandleFromIDB() {
     const db = await openHandleDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(HANDLE_STORE, 'readwrite');
-      tx.objectStore(HANDLE_STORE).delete(HANDLE_KEY);
+      const store = tx.objectStore(HANDLE_STORE);
+      store.delete(HANDLE_KEY);
+      store.delete(LEGACY_BACKUP_HANDLE_KEY);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -722,6 +736,22 @@ async function clearFileHandleFromIDB() {
     console.warn('[Watch Later] Could not clear stored handle', e);
   }
 }
+
+/** Older app versions stored a second file handle here; drop it so only the main list file remains. */
+async function deleteLegacyBackupHandleFromIDB() {
+  if (typeof indexedDB === 'undefined') return;
+  try {
+    const db = await openHandleDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(HANDLE_STORE, 'readwrite');
+      tx.objectStore(HANDLE_STORE).delete(LEGACY_BACKUP_HANDLE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch (_) {}
+}
+
 let q = '', catSelValue = '', statusFilter = 'unwatched', durationFilter = '', sortMode = 'default', page = 1;
 /** @type {number|null} Target seconds for “Time budget” filter, or null when off. */
 let timeBudgetTargetSec = null;
@@ -742,6 +772,12 @@ let pendingImportMode = null;
 
 function normalizeVideo(v) {
   const id = String(v.id || '');
+  const removed = Boolean(v.removed);
+  let removedAt = null;
+  if (removed && v.removedAt != null && v.removedAt !== '') {
+    const t = Number(v.removedAt);
+    if (Number.isFinite(t)) removedAt = t;
+  }
   return {
     id,
     title: v.title != null ? String(v.title) : '',
@@ -750,8 +786,71 @@ function normalizeVideo(v) {
     category: typeof v.category === 'string' ? v.category : '',
     duration: v.duration == null || v.duration === '' ? null : Number(v.duration),
     watched: Boolean(v.watched),
-    removed: Boolean(v.removed),
+    removed,
+    removedAt,
   };
+}
+
+/** One-time fields for lists saved before `removedAt` existed: start the 12h window from first open after upgrade. */
+function migrateLegacyRemovedTimestamps() {
+  let changed = false;
+  const now = Date.now();
+  for (const v of videos) {
+    if (v.removed && (v.removedAt == null || !Number.isFinite(v.removedAt))) {
+      v.removedAt = now;
+      changed = true;
+    }
+    if (!v.removed && v.removedAt != null) {
+      v.removedAt = null;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+/**
+ * Permanently drops entries that have been `removed` longer than REMOVED_RETENTION_MS.
+ * @returns {boolean} true if `videos` was mutated
+ */
+function purgeExpiredRemovedVideos() {
+  const now = Date.now();
+  const purgeIds = new Set(
+    videos
+      .filter(
+        v =>
+          v.removed &&
+          v.removedAt != null &&
+          Number.isFinite(Number(v.removedAt)) &&
+          now - Number(v.removedAt) >= REMOVED_RETENTION_MS,
+      )
+      .map(v => v.id),
+  );
+  if (purgeIds.size === 0) return false;
+  videos = videos.filter(v => !purgeIds.has(v.id));
+  return true;
+}
+
+function getRecentlyRemovedVideos() {
+  const now = Date.now();
+  return videos.filter(
+    v =>
+      v.removed &&
+      v.removedAt != null &&
+      Number.isFinite(Number(v.removedAt)) &&
+      now - Number(v.removedAt) < REMOVED_RETENTION_MS,
+  );
+}
+
+function updateRestoreRemovedMenuItem() {
+  const btn = document.getElementById('menuRestoreRemoved');
+  if (!btn) return;
+  const appOn = document.getElementById('appMain').classList.contains('on');
+  const n = appOn ? getRecentlyRemovedVideos().length : 0;
+  const label = btn.querySelector('.menu-item-label');
+  if (label) {
+    label.textContent = n > 0 ? `Restore ${n} recently removed` : 'Restore recently removed';
+  }
+  btn.disabled = !fileHandle || !appOn || n === 0;
 }
 
 function escapeHtml(s) {
@@ -1067,6 +1166,7 @@ function persistUiState() {
         sortMode,
         page,
         timeBudgetTargetSec,
+        categoriesSortMode,
       }),
     );
   } catch (_) {}
@@ -1123,10 +1223,19 @@ function restoreUiState() {
     if (o.timeBudgetTargetSec === null) timeBudgetTargetSec = null;
     if (tbs) tbs.value = '';
   }
+  if (o.categoriesSortMode === 'count' || o.categoriesSortMode === 'duration' || o.categoriesSortMode === 'alpha') {
+    categoriesSortMode = o.categoriesSortMode;
+    updateCategorySortToggleUI();
+  }
 }
 
 async function persist() {
   if (!fileHandle) return;
+  try {
+    purgeExpiredRemovedVideos();
+  } catch (e) {
+    console.warn('[Watch Later] Purge before save failed', e);
+  }
   try {
     const writable = await fileHandle.createWritable();
     await writable.write(JSON.stringify(videos, null, 2));
@@ -1165,7 +1274,16 @@ async function loadFromHandle(handle, opts = {}) {
   }
   videos = data.map(normalizeVideo);
   ensureCategoryColorsForData();
+  const migratedTs = migrateLegacyRemovedTimestamps();
+  let purged = false;
+  try {
+    purged = purgeExpiredRemovedVideos();
+  } catch (e) {
+    console.warn('[Watch Later] Purge on load failed', e);
+  }
+  if (migratedTs || purged) await persist();
   await persistFileHandleToIDB(handle);
+  deleteLegacyBackupHandleFromIDB();
 
   const splashEl = document.getElementById('splash');
   splashEl.classList.remove('splash-ready');
@@ -1253,6 +1371,7 @@ document.getElementById('menuBtn').addEventListener('click', e => {
   e.stopPropagation();
   const panel = document.getElementById('menuPanel');
   const open = panel.style.display === 'block';
+  if (!open) updateRestoreRemovedMenuItem();
   panel.style.display = open ? 'none' : 'block';
   document.getElementById('menuBtn').setAttribute('aria-expanded', open ? 'false' : 'true');
 });
@@ -1263,6 +1382,21 @@ document.addEventListener('click', e => {
 document.getElementById('menuOpenFile').addEventListener('click', () => {
   closeMenuPanel();
   openJsonPicker();
+});
+document.getElementById('menuRestoreRemoved').addEventListener('click', async () => {
+  closeMenuPanel();
+  if (!fileHandle) return;
+  const toRestore = getRecentlyRemovedVideos();
+  if (toRestore.length === 0) return;
+  toRestore.forEach(v => {
+    v.removed = false;
+    v.removedAt = null;
+  });
+  await persist();
+  rebuildCatSelect();
+  page = 1;
+  render();
+  showToast(`Restored ${toRestore.length} video${toRestore.length === 1 ? '' : 's'}`);
 });
 document.getElementById('menuHelp').addEventListener('click', () => {
   closeMenuPanel();
@@ -1279,6 +1413,7 @@ document.querySelectorAll('.cat-summary-sort-btn').forEach(btn => {
     categoriesSortMode = v === 'count' || v === 'duration' ? v : 'alpha';
     updateCategorySortToggleUI();
     renderCategoriesScreen();
+    persistUiState();
   });
 });
 
@@ -1353,6 +1488,22 @@ async function tryAutoResumeFile() {
 }
 
 tryAutoResumeFile();
+
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || !fileHandle) return;
+  if (!document.getElementById('appMain').classList.contains('on')) return;
+  try {
+    const n = videos.length;
+    const purged = purgeExpiredRemovedVideos();
+    if (!purged || videos.length === n) return;
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(videos, null, 2));
+    await writable.close();
+    render();
+  } catch (e) {
+    console.warn('[Watch Later] visibility purge save', e);
+  }
+});
 
 function sumDurationsSeconds(videos) {
   let s = 0;
@@ -1908,9 +2059,13 @@ document.getElementById('batchToggleWatched').addEventListener('click', async ()
 
 document.getElementById('batchRemove').addEventListener('click', async () => {
   if (batchSelected.size === 0) return;
+  const t = Date.now();
   batchSelected.forEach(id => {
     const v = videos.find(x => x.id === id);
-    if (v) v.removed = true;
+    if (v) {
+      v.removed = true;
+      v.removedAt = t;
+    }
   });
   const n = batchSelected.size;
   exitBatchMode();
@@ -2036,7 +2191,7 @@ function downloadBlob(blob, filename) {
 }
 
 function exportNonRemoved() {
-  return nonRemovedVideos().map(({ removed, ...rest }) => rest);
+  return nonRemovedVideos().map(({ removed, removedAt, ...rest }) => rest);
 }
 
 document.querySelectorAll('.export-item').forEach(btn => {
@@ -2343,12 +2498,13 @@ document.getElementById('addVideoBtn').addEventListener('click', async () => {
   if (!addPreview.id) return;
   const existing = videos.find(v => v.id === addPreview.id);
   if (existing && !existing.removed) {
-    showToast('Already in your list');
+    showToast('Already saved.');
     closeAddModal();
     return;
   }
   if (existing && existing.removed) {
     existing.removed = false;
+    existing.removedAt = null;
     existing.title = addPreview.title;
     existing.channel = addPreview.channel;
     existing.url = addPreview.url;
@@ -2372,6 +2528,7 @@ document.getElementById('addVideoBtn').addEventListener('click', async () => {
     duration: null,
     watched: false,
     removed: false,
+    removedAt: null,
   });
   await persist();
   rebuildCatSelect();
@@ -2421,18 +2578,25 @@ function shortcutTargetIsTextField(el) {
   return false;
 }
 
+/** Backdrop id → close button id (same order as Escape: topmost modals first). */
+const MODAL_BACKDROP_CLOSE = [
+  ['modalEditDuration', 'editDurClose'],
+  ['modalCategory', 'catModalClose'],
+  ['modalAdd', 'addModalClose'],
+  ['modalCategories', 'categoriesModalClose'],
+  ['modalImportConfirm', 'importModalClose'],
+  ['modalHelp', 'helpModalClose'],
+];
+MODAL_BACKDROP_CLOSE.forEach(([backdropId, closeBtnId]) => {
+  document.getElementById(backdropId).addEventListener('click', e => {
+    if (e.target === e.currentTarget) document.getElementById(closeBtnId).click();
+  });
+});
+
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     /** Same handlers as the modal X buttons; modals before batch so e.g. Set category closes first while batch is open. */
-    const modalClosePairs = [
-      ['modalEditDuration', 'editDurClose'],
-      ['modalCategory', 'catModalClose'],
-      ['modalAdd', 'addModalClose'],
-      ['modalCategories', 'categoriesModalClose'],
-      ['modalImportConfirm', 'importModalClose'],
-      ['modalHelp', 'helpModalClose'],
-    ];
-    for (const [backdropId, closeBtnId] of modalClosePairs) {
+    for (const [backdropId, closeBtnId] of MODAL_BACKDROP_CLOSE) {
       const backdrop = document.getElementById(backdropId);
       if (backdrop && backdrop.classList.contains('on')) {
         document.getElementById(closeBtnId).click();
