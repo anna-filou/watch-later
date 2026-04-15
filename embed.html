@@ -22,17 +22,32 @@
       color: var(--text);
     }
     .wrap {
-      max-width: 980px;
+      max-width: none;
       margin: 0 auto;
-      padding: 16px;
+      padding: 16px clamp(16px, 4vw, 40px);
+      width: 100%;
     }
-    .actions {
-      display: flex;
-      justify-content: space-between;
+    .topbar {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      grid-template-rows: auto auto;
+      gap: 10px 16px;
       align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
       margin-bottom: 14px;
+    }
+    .topbar .btn-back {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .topbar #openYoutube {
+      grid-column: 3;
+      grid-row: 1;
+      justify-self: end;
+    }
+    .topbar .meta {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      margin: 0;
     }
     .btn {
       display: inline-flex;
@@ -57,9 +72,6 @@
       height: 19px;
     }
     .btn:hover { border-color: var(--accent); }
-    .meta {
-      margin-bottom: 12px;
-    }
     .title {
       font-size: 1.1rem;
       font-weight: 700;
@@ -69,6 +81,41 @@
     .channel {
       color: var(--muted);
       margin: 0;
+    }
+    @media (min-width: 900px) {
+      .topbar {
+        grid-template-rows: auto;
+      }
+      .topbar .meta {
+        grid-column: 2;
+        grid-row: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: row;
+        align-items: baseline;
+        gap: 0.35em;
+        flex-wrap: nowrap;
+      }
+      .topbar .title {
+        margin: 0;
+        flex-shrink: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .topbar .channel {
+        flex-shrink: 2;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .topbar .channel:not(:empty)::before {
+        content: '·';
+        margin-right: 0.35em;
+        color: var(--muted);
+      }
     }
     .player-shell {
       background: var(--panel);
@@ -101,25 +148,24 @@
 </head>
 <body>
   <main class="wrap">
-    <div class="actions">
-      <a class="btn" href="./index.html">
+    <header class="topbar">
+      <a class="btn btn-back" href="./index.html" aria-label="Back to list" title="Back to list">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path fill="currentColor" d="M14.7 5.3a1 1 0 0 1 0 1.4L10.41 11H20a1 1 0 1 1 0 2h-9.59l4.3 4.3a1 1 0 0 1-1.42 1.4l-6-6a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.41 0z"/>
         </svg>
-        <span>Back to list</span>
       </a>
+      <section class="meta">
+        <h1 class="title" id="videoTitle">Video player</h1>
+        <p class="channel" id="videoChannel"></p>
+      </section>
       <a class="btn" id="openYoutube" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <rect x="2" y="6" width="20" height="12" rx="4" fill="#FF0000"></rect>
           <path d="M10 9.25L15.25 12L10 14.75Z" fill="#FFFFFF"></path>
         </svg>
-        <span>Open on YouTube</span>
+        <span>YouTube</span>
       </a>
-    </div>
-    <section class="meta">
-      <h1 class="title" id="videoTitle">Video player</h1>
-      <p class="channel" id="videoChannel"></p>
-    </section>
+    </header>
     <section id="content"></section>
   </main>
   <script>
