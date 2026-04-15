@@ -804,6 +804,19 @@ function parseYouTubeId(raw) {
   return null;
 }
 
+function isLikelyYouTubeId(id) {
+  return /^[A-Za-z0-9_-]{6,}$/.test(String(id || '').trim());
+}
+
+function buildEmbedPageUrl(video) {
+  const id = String(video?.id || '').trim();
+  if (!isLikelyYouTubeId(id)) return String(video?.url || '#');
+  const params = new URLSearchParams({ id });
+  if (video?.title) params.set('title', String(video.title));
+  if (video?.channel) params.set('channel', String(video.channel));
+  return `embed.html?${params.toString()}`;
+}
+
 /** YouTube id for JSON merge dedup: explicit `id` or parsed from `url`. */
 function videoImportDedupeKey(v) {
   const id = String(v.id || '').trim();
@@ -1553,9 +1566,7 @@ function setAddPreviewThumbnail(videoId, videoTitle) {
 function makeCard(v) {
   const a = document.createElement('a');
   a.className = 'card' + (v.watched ? ' is-watched' : '');
-  a.href = v.url;
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
+  a.href = buildEmbedPageUrl(v);
   a.dataset.id = v.id;
 
   const dur = formatDuration(v.duration);

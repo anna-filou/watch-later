@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Watch Later - Player</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1115;
+      --panel: #171a21;
+      --text: #e8ecf3;
+      --muted: #aab3c4;
+      --border: #273043;
+      --accent: #6ca0ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      text-decoration: none;
+      color: var(--text);
+      background: #1b1f2a;
+      font-weight: 600;
+    }
+    .btn svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+    #openYoutube svg {
+      width: 19px;
+      height: 19px;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .meta {
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      line-height: 1.35;
+      margin: 0 0 4px;
+    }
+    .channel {
+      color: var(--muted);
+      margin: 0;
+    }
+    .player-shell {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+    }
+    .player {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;
+      background: #000;
+    }
+    .player iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    .empty {
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel);
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="actions">
+      <a class="btn" href="./index.html">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M14.7 5.3a1 1 0 0 1 0 1.4L10.41 11H20a1 1 0 1 1 0 2h-9.59l4.3 4.3a1 1 0 0 1-1.42 1.4l-6-6a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.41 0z"/>
+        </svg>
+        <span>Back to list</span>
+      </a>
+      <a class="btn" id="openYoutube" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="2" y="6" width="20" height="12" rx="4" fill="#FF0000"></rect>
+          <path d="M10 9.25L15.25 12L10 14.75Z" fill="#FFFFFF"></path>
+        </svg>
+        <span>Open on YouTube</span>
+      </a>
+    </div>
+    <section class="meta">
+      <h1 class="title" id="videoTitle">Video player</h1>
+      <p class="channel" id="videoChannel"></p>
+    </section>
+    <section id="content"></section>
+  </main>
+  <script>
+    function cleanText(raw) {
+      return String(raw || '').trim();
+    }
+
+    function isLikelyYouTubeId(id) {
+      return /^[A-Za-z0-9_-]{6,}$/.test(id);
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const id = cleanText(params.get('id'));
+    const title = cleanText(params.get('title'));
+    const channel = cleanText(params.get('channel'));
+    const youtubeUrl = id ? `https://www.youtube.com/watch?v=${encodeURIComponent(id)}` : 'https://www.youtube.com/';
+
+    const openYoutube = document.getElementById('openYoutube');
+    openYoutube.href = youtubeUrl;
+
+    document.getElementById('videoTitle').textContent = title || 'Video player';
+    document.getElementById('videoChannel').textContent = channel || '';
+
+    const content = document.getElementById('content');
+    if (!isLikelyYouTubeId(id)) {
+      content.innerHTML = '<div class="empty">Missing or invalid video ID. Use "Open on YouTube" to watch it there instead.</div>';
+    } else {
+      const shell = document.createElement('div');
+      shell.className = 'player-shell';
+      shell.innerHTML = `
+        <div class="player">
+          <iframe
+            src="https://www.youtube.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0&enablejsapi=1"
+            title="YouTube video player"
+            id="ytPlayer"
+            loading="eager"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+      `;
+      content.appendChild(shell);
+      const iframe = shell.querySelector('#ytPlayer');
+      const set2x = () => {
+        if (!iframe || !iframe.contentWindow) return;
+        iframe.contentWindow.postMessage(
+          JSON.stringify({
+            event: 'command',
+            func: 'setPlaybackRate',
+            args: [2]
+          }),
+          '*'
+        );
+      };
+      iframe.addEventListener('load', () => {
+        set2x();
+        setTimeout(set2x, 1200);
+      }, { once: true });
+    }
+  </script>
+</body>
+</html>
