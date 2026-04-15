@@ -1489,6 +1489,10 @@ async function tryAutoResumeFile() {
 
 tryAutoResumeFile();
 
+window.addEventListener('pagehide', () => {
+  persistUiState();
+});
+
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible' || !fileHandle) return;
   if (!document.getElementById('appMain').classList.contains('on')) return;

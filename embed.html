@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Watch Later - Player</title>
+  <link rel="icon" href="favicon-embed.svg" type="image/svg+xml">
   <style>
     :root {
       color-scheme: dark;
@@ -54,10 +55,14 @@
       grid-column: 1;
       grid-row: 1;
     }
-    .topbar #openYoutube {
+    .topbar-actions {
       grid-column: 3;
       grid-row: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       justify-self: end;
+      flex-wrap: wrap;
     }
     .topbar .meta {
       grid-column: 1 / -1;
@@ -76,17 +81,41 @@
       color: var(--text);
       background: #1b1f2a;
       font-weight: 600;
+      cursor: pointer;
     }
     .btn svg {
       width: 16px;
       height: 16px;
       flex: 0 0 auto;
     }
+    #openYoutube {
+      padding-top: 5px;
+      padding-bottom: 5px;
+    }
     #openYoutube svg {
-      width: 19px;
-      height: 19px;
+      width: 24px;
+      height: 24px;
     }
     .btn:hover { border-color: var(--accent); }
+    .btn:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+    .btn:disabled:hover {
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn.danger:hover:not(:disabled) {
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+    }
+    .btn-remove {
+      padding: 5px 10px;
+    }
+    #btnRemove svg {
+      width: 20px;
+      height: 20px;
+    }
     .title {
       font-size: 1.1rem;
       font-weight: 700;
@@ -176,6 +205,32 @@
       background: var(--panel);
       color: var(--muted);
     }
+    #toast {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 12px 20px;
+      z-index: 4000;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      max-width: min(420px, 92vw);
+    }
+    #toast.show {
+      display: flex;
+      white-space: normal;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -190,16 +245,24 @@
         <h1 class="title" id="videoTitle">Video player</h1>
         <p class="channel" id="videoChannel"></p>
       </section>
-      <a class="btn" id="openYoutube" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="2" y="6" width="20" height="12" rx="4" fill="#FF0000"></rect>
-          <path d="M10 9.25L15.25 12L10 14.75Z" fill="#FFFFFF"></path>
-        </svg>
-        <span>YouTube</span>
-      </a>
+      <div class="topbar-actions">
+        <a class="btn" id="openYoutube" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="2" y="6" width="20" height="12" rx="4" fill="#FF0000"></rect>
+            <path d="M10 9.25L15.25 12L10 14.75Z" fill="#FFFFFF"></path>
+          </svg>
+          <span>YouTube</span>
+        </a>
+        <button type="button" class="btn btn-remove danger" id="btnRemove" aria-label="Remove from list" title="Remove from list" disabled>
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M17 6H22V8H20V21C20 21.5523 19.5523 22 19 22H5C4.44772 22 4 21.5523 4 21V8H2V6H7V3C7 2.44772 7.44772 2 8 2H16C16.5523 2 17 2.44772 17 3V6ZM18 8H6V20H18V8ZM13.4142 13.9997L15.182 15.7675L13.7678 17.1817L12 15.4139L10.2322 17.1817L8.81802 15.7675L10.5858 13.9997L8.81802 12.232L10.2322 10.8178L12 12.5855L13.7678 10.8178L15.182 12.232L13.4142 13.9997ZM9 4V6H15V4H9Z"/>
+          </svg>
+        </button>
+      </div>
     </header>
     <section id="content"></section>
   </main>
+  <div id="toast"><span id="toastMsg"></span></div>
   <script>
     function cleanText(raw) {
       return String(raw || '').trim();
@@ -207,6 +270,194 @@
 
     function isLikelyYouTubeId(id) {
       return /^[A-Za-z0-9_-]{6,}$/.test(id);
+    }
+
+    const HANDLE_DB = 'watch-later-v2-fs';
+    const HANDLE_STORE = 'meta';
+    const HANDLE_KEY = 'watchLaterJson';
+    const REMOVED_RETENTION_MS = 12 * 60 * 60 * 1000;
+
+    let videos = [];
+    let fileHandle = null;
+
+    function openHandleDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(HANDLE_DB, 1);
+        req.onerror = () => reject(req.error);
+        req.onupgradeneeded = e => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(HANDLE_STORE)) db.createObjectStore(HANDLE_STORE);
+        };
+        req.onsuccess = () => resolve(req.result);
+      });
+    }
+
+    async function loadFileHandleFromIDB() {
+      if (typeof indexedDB === 'undefined') return null;
+      try {
+        const db = await openHandleDB();
+        const h = await new Promise((resolve, reject) => {
+          const tx = db.transaction(HANDLE_STORE, 'readonly');
+          const r = tx.objectStore(HANDLE_STORE).get(HANDLE_KEY);
+          r.onsuccess = () => resolve(r.result || null);
+          r.onerror = () => reject(r.error);
+        });
+        db.close();
+        return h;
+      } catch {
+        return null;
+      }
+    }
+
+    function normalizeVideo(v) {
+      const vid = String(v.id || '');
+      const removed = Boolean(v.removed);
+      let removedAt = null;
+      if (removed && v.removedAt != null && v.removedAt !== '') {
+        const t = Number(v.removedAt);
+        if (Number.isFinite(t)) removedAt = t;
+      }
+      return {
+        id: vid,
+        title: v.title != null ? String(v.title) : '',
+        channel: v.channel != null ? String(v.channel) : '',
+        url: v.url || (vid ? `https://www.youtube.com/watch?v=${vid}` : ''),
+        category: typeof v.category === 'string' ? v.category : '',
+        duration: v.duration == null || v.duration === '' ? null : Number(v.duration),
+        watched: Boolean(v.watched),
+        removed,
+        removedAt,
+      };
+    }
+
+    function migrateLegacyRemovedTimestamps() {
+      let changed = false;
+      const now = Date.now();
+      for (const v of videos) {
+        if (v.removed && (v.removedAt == null || !Number.isFinite(v.removedAt))) {
+          v.removedAt = now;
+          changed = true;
+        }
+        if (!v.removed && v.removedAt != null) {
+          v.removedAt = null;
+          changed = true;
+        }
+      }
+      return changed;
+    }
+
+    function purgeExpiredRemovedVideos() {
+      const now = Date.now();
+      const purgeIds = new Set(
+        videos
+          .filter(
+            v =>
+              v.removed &&
+              v.removedAt != null &&
+              Number.isFinite(Number(v.removedAt)) &&
+              now - Number(v.removedAt) >= REMOVED_RETENTION_MS,
+          )
+          .map(v => v.id),
+      );
+      if (purgeIds.size === 0) return false;
+      videos = videos.filter(v => !purgeIds.has(v.id));
+      return true;
+    }
+
+    async function persistToFile() {
+      if (!fileHandle) return false;
+      try {
+        purgeExpiredRemovedVideos();
+      } catch (e) {
+        console.warn('[Watch Later embed] Purge before save failed', e);
+      }
+      try {
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(videos, null, 2));
+        await writable.close();
+        return true;
+      } catch (e) {
+        showToast('Could not save file: ' + (e.message || String(e)), true);
+        return false;
+      }
+    }
+
+    function showToast(msg, isError) {
+      const el = document.getElementById('toast');
+      const msgEl = document.getElementById('toastMsg');
+      msgEl.textContent = msg;
+      el.classList.add('show');
+      el.style.display = 'flex';
+      el.style.borderColor = isError ? '#ff6b6b' : 'var(--border)';
+      el.style.opacity = '1';
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => {
+          el.classList.remove('show');
+          el.style.display = 'none';
+        }, 200);
+      }, 3000);
+    }
+
+    async function removeCurrentVideoFromList(videoId) {
+      const handle = await loadFileHandleFromIDB();
+      if (!handle) {
+        showToast('No list file connected. Open the main page and choose watch_later.json first.', true);
+        return;
+      }
+      const perm = handle.requestPermission ? await handle.requestPermission({ mode: 'readwrite' }) : 'granted';
+      if (perm !== 'granted') {
+        showToast('Permission was not granted. Try again from the main page.', true);
+        return;
+      }
+      fileHandle = handle;
+      let file;
+      try {
+        file = await fileHandle.getFile();
+      } catch (e) {
+        showToast('Could not read file: ' + (e.message || String(e)), true);
+        fileHandle = null;
+        return;
+      }
+      let data;
+      try {
+        data = JSON.parse(await file.text());
+        if (!Array.isArray(data)) throw new Error('JSON must be an array of videos');
+      } catch (e) {
+        showToast('Could not read list: ' + (e.message || String(e)), true);
+        return;
+      }
+      videos = data.map(normalizeVideo);
+      const migratedTs = migrateLegacyRemovedTimestamps();
+      let purged = false;
+      try {
+        purged = purgeExpiredRemovedVideos();
+      } catch (e) {
+        console.warn('[Watch Later embed] Purge on load failed', e);
+      }
+      if (migratedTs || purged) {
+        const okSync = await persistToFile();
+        if (!okSync) return;
+      }
+      const v = videos.find(x => x.id === videoId);
+      if (!v) {
+        showToast('This video is not in your list.', true);
+        return;
+      }
+      if (v.removed) {
+        showToast('Already removed from the list.', true);
+        return;
+      }
+      const t = Date.now();
+      v.removed = true;
+      v.removedAt = t;
+      const ok = await persistToFile();
+      if (!ok) return;
+      showToast('1 video removed');
+      setTimeout(() => {
+        window.location.replace('./index.html');
+      }, 450);
     }
 
     const params = new URLSearchParams(window.location.search);
@@ -217,6 +468,19 @@
 
     const openYoutube = document.getElementById('openYoutube');
     openYoutube.href = youtubeUrl;
+
+    const btnRemove = document.getElementById('btnRemove');
+    if (isLikelyYouTubeId(id)) {
+      btnRemove.disabled = false;
+      btnRemove.addEventListener('click', async () => {
+        btnRemove.disabled = true;
+        try {
+          await removeCurrentVideoFromList(id);
+        } finally {
+          btnRemove.disabled = false;
+        }
+      });
+    }
 
     document.getElementById('videoTitle').textContent = title || 'Video player';
     document.getElementById('videoChannel').textContent = channel || '';
@@ -230,7 +494,7 @@
       shell.innerHTML = `
         <div class="player">
           <iframe
-            src="https://www.youtube.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0&enablejsapi=1"
+            src="https://www.youtube.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0&enablejsapi=1&cc_load_policy=1"
             title="YouTube video player"
             id="ytPlayer"
             loading="eager"
