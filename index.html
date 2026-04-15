@@ -197,6 +197,25 @@ a.card:hover .thumb img{transform:scale(1.04)}
 input.modal-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:10px 12px;margin-bottom:10px;outline:none}
 input.modal-input:focus{border-color:var(--accent)}
 
+.cat-summary-wrap{margin-top:4px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.cat-summary-top{display:flex;justify-content:flex-end;align-items:center;margin:4px 0 10px}
+.cat-summary-sort-toggle{display:inline-flex;align-items:center;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.cat-summary-sort-btn{background:transparent;border:0;color:var(--muted);font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:.02em;padding:8px 12px;cursor:pointer;transition:background .12s,color .12s}
+.cat-summary-sort-btn + .cat-summary-sort-btn{border-left:1px solid var(--border)}
+.cat-summary-sort-btn:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.cat-summary-sort-btn.is-active{background:var(--accent);color:#0e0e10}
+.cat-summary-row{display:grid;grid-template-columns:minmax(0,1fr) 120px 120px;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center}
+.cat-summary-row:last-child{border-bottom:none}
+.cat-summary-row.is-head{background:var(--surface2);font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+.cat-summary-row.is-total{background:rgba(255,255,255,.03);font-weight:700}
+.cat-summary-cell-count,.cat-summary-cell-duration{text-align:right;font-variant-numeric:tabular-nums}
+.cat-summary-row.is-clickable{cursor:pointer;transition:background .12s}
+.cat-summary-row.is-clickable:hover{background:rgba(255,255,255,.05)}
+@media(max-width:600px){
+  .cat-summary-sort-btn{padding:7px 10px;font-size:10px}
+  .cat-summary-row{grid-template-columns:minmax(0,1fr) 84px 96px;gap:8px;padding:9px 10px}
+}
+
 .cat-modal-filter{margin-top:4px}
 .cat-new-row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
 .cat-new-row .modal-input{margin-bottom:0;flex:1;min-width:140px}
@@ -266,6 +285,7 @@ input.modal-input:focus{border-color:var(--accent)}
     </div>
     <div class="header-actions">
       <button type="button" class="hdr-btn hdr-btn-primary" id="btnAddVideo">Add video</button>
+      <button type="button" class="hdr-btn" id="btnCategories">Categories</button>
       <div class="menu-wrap" id="menuWrap">
         <button type="button" class="hdr-btn" id="menuBtn" aria-expanded="false" aria-haspopup="true" aria-controls="menuPanel">Menu ▾</button>
         <div id="menuPanel" role="menu" aria-labelledby="menuBtn">
@@ -434,6 +454,23 @@ input.modal-input:focus{border-color:var(--accent)}
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalCategories">
+  <div class="modal-panel wide">
+    <button type="button" class="modal-close" id="categoriesModalClose" title="Close" aria-label="Close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h3>Categories</h3>
+    <div class="cat-summary-top">
+      <div class="cat-summary-sort-toggle" role="tablist" aria-label="Sort categories by">
+        <button type="button" class="cat-summary-sort-btn is-active" data-cat-sort="alpha" role="tab" aria-selected="true">Alphabetical</button>
+        <button type="button" class="cat-summary-sort-btn" data-cat-sort="count" role="tab" aria-selected="false">Count</button>
+        <button type="button" class="cat-summary-sort-btn" data-cat-sort="duration" role="tab" aria-selected="false">Duration</button>
+      </div>
+    </div>
+    <div id="categoriesSummary"></div>
   </div>
 </div>
 
@@ -690,6 +727,7 @@ let q = '', catSelValue = '', statusFilter = 'unwatched', durationFilter = '', s
 let timeBudgetTargetSec = null;
 let batchMode = false;
 let batchSelected = new Set();
+let categoriesSortMode = 'alpha';
 
 let categoryModalMode = 'single';
 let categoryModalVideoId = null;
@@ -864,6 +902,106 @@ function categoriesInData() {
     if (v.category) set.add(v.category);
   });
   return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+function getCategorySummaryRows() {
+  const map = new Map();
+  nonRemovedVideos().forEach(v => {
+    const cat = v.category || 'Uncategorized';
+    if (!map.has(cat)) map.set(cat, { category: cat, count: 0, duration: 0 });
+    const row = map.get(cat);
+    row.count += 1;
+    if (v.duration != null && Number.isFinite(Number(v.duration)) && Number(v.duration) > 0) {
+      row.duration += Number(v.duration);
+    }
+  });
+  const rows = [...map.values()];
+  if (categoriesSortMode === 'count') {
+    rows.sort((a, b) => (b.count - a.count) || a.category.localeCompare(b.category));
+  } else if (categoriesSortMode === 'duration') {
+    rows.sort((a, b) => (b.duration - a.duration) || a.category.localeCompare(b.category));
+  } else {
+    rows.sort((a, b) => a.category.localeCompare(b.category));
+  }
+  return rows;
+}
+
+function renderCategoriesScreen() {
+  const host = document.getElementById('categoriesSummary');
+  const rows = getCategorySummaryRows();
+  const totalCount = rows.reduce((n, r) => n + r.count, 0);
+  const totalDuration = rows.reduce((n, r) => n + r.duration, 0);
+  if (!rows.length) {
+    host.innerHTML = '<p class="hint" style="margin:0">No videos found in your current file.</p>';
+    return;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'cat-summary-wrap';
+  const head = document.createElement('div');
+  head.className = 'cat-summary-row is-head';
+  head.innerHTML = `
+    <div>Category</div>
+    <div class="cat-summary-cell-count">Videos</div>
+    <div class="cat-summary-cell-duration">Duration</div>
+  `;
+  wrap.appendChild(head);
+  rows.forEach(r => {
+    const line = document.createElement('div');
+    line.className = 'cat-summary-row is-clickable';
+    line.setAttribute('role', 'button');
+    line.setAttribute('tabindex', '0');
+    line.innerHTML = `
+      <div>${escapeHtml(r.category)}</div>
+      <div class="cat-summary-cell-count">${r.count}</div>
+      <div class="cat-summary-cell-duration">${formatFilteredDurationTotal(r.duration)}</div>
+    `;
+    line.addEventListener('click', () => applyCategoryFromSummary(r.category));
+    line.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      applyCategoryFromSummary(r.category);
+    });
+    wrap.appendChild(line);
+  });
+  const total = document.createElement('div');
+  total.className = 'cat-summary-row is-total';
+  total.innerHTML = `
+    <div>Total</div>
+    <div class="cat-summary-cell-count">${totalCount}</div>
+    <div class="cat-summary-cell-duration">${formatFilteredDurationTotal(totalDuration)}</div>
+  `;
+  wrap.appendChild(total);
+  host.innerHTML = '';
+  host.appendChild(wrap);
+}
+
+function openCategoriesModal() {
+  updateCategorySortToggleUI();
+  renderCategoriesScreen();
+  document.getElementById('modalCategories').classList.add('on');
+}
+
+function closeCategoriesModal() {
+  document.getElementById('modalCategories').classList.remove('on');
+}
+
+function updateCategorySortToggleUI() {
+  document.querySelectorAll('.cat-summary-sort-btn').forEach(btn => {
+    const isActive = btn.getAttribute('data-cat-sort') === categoriesSortMode;
+    btn.classList.toggle('is-active', isActive);
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+}
+
+function applyCategoryFromSummary(category) {
+  const value = category === 'Uncategorized' ? UNCATEGORIZED_VAL : category;
+  const sel = document.getElementById('catSel');
+  if (![...sel.options].some(o => o.value === value)) return;
+  sel.value = value;
+  catSelValue = value;
+  page = 1;
+  render();
+  closeCategoriesModal();
 }
 
 function matchesStatusFilter(v) {
@@ -1132,6 +1270,16 @@ document.getElementById('menuHelp').addEventListener('click', () => {
 });
 document.getElementById('helpModalClose').addEventListener('click', () => {
   document.getElementById('modalHelp').classList.remove('on');
+});
+document.getElementById('btnCategories').addEventListener('click', openCategoriesModal);
+document.getElementById('categoriesModalClose').addEventListener('click', closeCategoriesModal);
+document.querySelectorAll('.cat-summary-sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = btn.getAttribute('data-cat-sort');
+    categoriesSortMode = v === 'count' || v === 'duration' ? v : 'alpha';
+    updateCategorySortToggleUI();
+    renderCategoriesScreen();
+  });
 });
 
 document.getElementById('splashResumeBtn').addEventListener('click', async () => {
@@ -2280,6 +2428,7 @@ document.addEventListener('keydown', e => {
       ['modalEditDuration', 'editDurClose'],
       ['modalCategory', 'catModalClose'],
       ['modalAdd', 'addModalClose'],
+      ['modalCategories', 'categoriesModalClose'],
       ['modalImportConfirm', 'importModalClose'],
       ['modalHelp', 'helpModalClose'],
     ];
